@@ -6,7 +6,7 @@ import { useState } from "react";
 export default function FeedbackReport({ scenario, settings, feedback, onRestart, onHarder, onNext }) {
   const f = feedback || mockFeedback;
   const [copied, setCopied] = useState(false);
-  const copy = () => { navigator.clipboard?.writeText(`Hanasu AI — ${scenario.title}: ${f.score}/100. ${f.wins.join(" ")}`); setCopied(true); setTimeout(()=>setCopied(false),1500); };
+  const copy = () => { navigator.clipboard?.writeText(`Kaiwa Lab — ${scenario.title}: ${f.score}/100. ${f.wins.join(" ")}`); setCopied(true); setTimeout(()=>setCopied(false),1500); };
   return <div className="app-screen feedback-page"><div className="report-shell">
     <div className="report-top"><span className="success-mark"><Check/></span><div><small>SESSION COMPLETE</small><h1>よくできました！</h1><p>Nice work. Here’s what to carry into your next conversation.</p></div><div className="report-actions"><button onClick={copy}>{copied?<Check/>:<Copy/>} {copied?"Copied":"Copy summary"}</button><button onClick={()=>window.print()}><Download/> Download report</button></div></div>
     <div className="session-summary"><div><small>SCENARIO</small><b>{scenario.title}</b></div><div><small>LEVEL</small><b>{settings.level}</b></div><div><small>MODE</small><b>{settings.mode}</b></div><div><small>DURATION</small><b>04:18</b></div></div>

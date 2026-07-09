@@ -43,7 +43,7 @@ export default function LandingPage({ onSelect, onDemo }) {
 
       <section className="section shell" id="how">
         <div className="section-kicker">WHY HANASU</div>
-        <div className="section-heading"><h2>From “I understand it” to<br/><em>“I can say it.”</em></h2><p>Textbooks teach you the pieces. Hanasu helps you put them together in the moments that matter.</p></div>
+        <div className="section-heading"><h2>From “I understand it” to<br/><em>“I can say it.”</em></h2><p>Textbooks teach you the pieces. Kaiwa Lab helps you put them together in the moments that matter.</p></div>
         <div className="feature-grid">{features.map(([Icon, title, body], i) => <article className="feature" key={title}><span className="feature-num">0{i + 1}</span><div className="feature-icon"><Icon /></div><h3>{title}</h3><p>{body}</p></article>)}</div>
       </section>
 

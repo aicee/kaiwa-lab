@@ -8,7 +8,7 @@ export default function Navbar({ view, onHome, onNavigate, onPractice }) {
   return (
     <header className="nav-wrap">
       <nav className="nav shell">
-        <button className="brand" onClick={onHome}><span className="brand-mark">話</span><span>Hanasu <b>AI</b></span></button>
+        <button className="brand" onClick={onHome}><span className="brand-mark">話</span><span>Kaiwa <b>Lab</b></span></button>
         <div className={`nav-links ${open ? "open" : ""}`}>
           {view === "home" && links.map(([label, target]) => <button key={label} onClick={() => { onNavigate(target); setOpen(false); }}>{label}</button>)}
           <button className="btn btn-dark nav-cta" onClick={onPractice}>Start practice <span>→</span></button>

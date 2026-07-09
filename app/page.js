@@ -22,10 +22,19 @@ export default function Home() {
     translation: true
   });
   const [feedback, setFeedback] = useState(mockFeedback);
+  const [voiceUnlocked, setVoiceUnlocked] = useState(false);
+  const [unlockMessage, setUnlockMessage] = useState("");
+  const [unlockError, setUnlockError] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+  const [showDemoCodeModal, setShowDemoCodeModal] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [view]);
+
+  useEffect(() => {
+    setVoiceUnlocked(Boolean(sessionStorage.getItem("kaiwaDemoAccessToken")));
+  }, []);
 
   const chooseScenario = (item) => {
     setScenario(item);
@@ -49,7 +58,55 @@ export default function Home() {
             settings={settings}
             setSettings={setSettings}
             onBack={() => goHome("#scenarios")}
-            onStart={() => setView("conversation")}
+            onStart={() => {
+              if (settings.mode === "Voice Mode" && !voiceUnlocked) {
+                setShowDemoCodeModal(true);
+                return;
+              }
+              setView("conversation");
+            }}
+            voiceUnlocked={voiceUnlocked}
+            unlockMessage={unlockMessage}
+            unlockError={unlockError}
+            unlocking={unlocking}
+            showDemoCodeModal={showDemoCodeModal}
+            setShowDemoCodeModal={setShowDemoCodeModal}
+            onContinueDemo={() => {
+              setSettings((s) => ({ ...s, mode: "Demo Mode" }));
+              setUnlockError("");
+              setShowDemoCodeModal(false);
+            }}
+            onUnlockVoice={async (event) => {
+              event.preventDefault();
+              setUnlocking(true);
+              setUnlockError("");
+              setUnlockMessage("");
+              const code = new FormData(event.currentTarget).get("demoCode");
+
+              try {
+                const response = await fetch("/api/demo-code/validate", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ code })
+                });
+                const data = await response.json();
+
+                if (!data.success || !data.accessToken) {
+                  setUnlockError("That code did not work. You can still use Demo Mode.");
+                  return;
+                }
+
+                sessionStorage.setItem("kaiwaDemoAccessToken", data.accessToken);
+                setVoiceUnlocked(true);
+                setSettings((s) => ({ ...s, mode: "Voice Mode" }));
+                setUnlockMessage("Voice Mode unlocked for this session.");
+                setShowDemoCodeModal(false);
+              } catch {
+                setUnlockError("That code did not work. You can still use Demo Mode.");
+              } finally {
+                setUnlocking(false);
+              }
+            }}
           />
         )}
         {view === "conversation" && (

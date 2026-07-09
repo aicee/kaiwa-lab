@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { reserveLiveVoiceSession, validateDemoAccessToken, validateDemoCode } from "@/lib/demoAccess";
 
 export async function POST(request) {
   let sessionConfig;
@@ -23,9 +24,27 @@ export async function POST(request) {
     );
   }
 
-  // TODO: Create a signed ElevenLabs conversation session on the server.
+  const accessToken = sessionConfig?.demoAccessToken;
+  const code = sessionConfig?.demoCode;
+  const access = accessToken ? validateDemoAccessToken(accessToken) : validateDemoCode(code);
+
+  if (!access.success) {
+    return NextResponse.json(
+      { success: false, message: "Voice Mode requires demo access." },
+      { status: 403 }
+    );
+  }
+
+  const limit = reserveLiveVoiceSession(access.sessionId || "direct-code");
+  if (!limit.success) {
+    return NextResponse.json(limit, { status: 429 });
+  }
+
+  // TODO: Create a signed ElevenLabs Conversational AI session on the server.
+  // TODO: Pass scenario, level, and support settings as dynamic conversation variables.
   return NextResponse.json(
     {
+      success: true,
       status: "placeholder",
       message: "ElevenLabs credentials are configured; live session creation is the next integration step.",
       sessionConfig

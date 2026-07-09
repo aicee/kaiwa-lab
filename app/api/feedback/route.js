@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { mockFeedback } from "@/data/mockFeedback";
+import { checkLiveFeedbackLimits, validateDemoAccessToken } from "@/lib/demoAccess";
 
 export async function POST(request) {
   let sessionData;
@@ -15,6 +16,26 @@ export async function POST(request) {
       feedback: mockFeedback,
       source: "mock",
       message: "OPENAI_API_KEY is not configured. Returning demo feedback.",
+      sessionData
+    });
+  }
+
+  const access = validateDemoAccessToken(sessionData?.demoAccessToken);
+  if (!access.success) {
+    return NextResponse.json({
+      feedback: mockFeedback,
+      source: "mock",
+      message: "Demo access was not provided. Returning demo feedback.",
+      sessionData
+    });
+  }
+
+  const limit = checkLiveFeedbackLimits(access.sessionId, sessionData);
+  if (!limit.success) {
+    return NextResponse.json({
+      feedback: mockFeedback,
+      source: "mock",
+      message: limit.message,
       sessionData
     });
   }

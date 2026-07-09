@@ -29,7 +29,7 @@ export default function ConversationRoom({ scenario, settings, onEnd }) {
     });
   };
   return <div className="app-screen conversation-page">
-    <header className="room-header"><div className="room-brand"><span>話</span> Hanasu AI</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.title}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{settings.level.split(" ")[0]}</span><span>{settings.politeness}</span><span>{settings.mode}</span><b>{String(Math.floor(seconds/60)).padStart(2,"0")}:{String(seconds%60).padStart(2,"0")}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Generating feedback…" : "End session"}</button></div></header>
+    <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.title}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{settings.level.split(" ")[0]}</span><span>{settings.politeness}</span><span>{settings.mode}</span><b>{String(Math.floor(seconds/60)).padStart(2,"0")}:{String(seconds%60).padStart(2,"0")}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Generating feedback…" : "End session"}</button></div></header>
     <div className="room-layout">
       <aside className="goals-panel">
         <small>SESSION PROGRESS</small><div className="goal-total"><b>{done}</b><span>of {scenario.goals.length}<br/>goals complete</span></div><div className="progress"><i style={{width: `${done/scenario.goals.length*100}%`}}/></div>

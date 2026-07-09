@@ -1,10 +1,10 @@
 # ElevenLabs Agent Setup
 
-Hanasu AI uses one ElevenLabs voice agent for live roleplay. The app passes dynamic session values such as scenario, role, level, politeness, romaji, translation, practice mode, and user goal. This avoids creating 12 separate agents.
+Kaiwa Lab uses one ElevenLabs voice agent for live roleplay. The app passes dynamic session values such as scenario, role, level, politeness, romaji, translation, practice mode, and user goal. This avoids creating 12 separate agents.
 
 The final feedback report is generated separately by a backend OpenAI call after the session ends. This keeps voice conversation fast and natural while allowing richer review.
 
-- Recommended agent name: **Hanasu AI**
+- Recommended agent name: **Kaiwa Lab**
 - Purpose: Japanese conversation roleplay tutor for real-life speaking practice
 - Primary language: Japanese
 - Secondary language: English
