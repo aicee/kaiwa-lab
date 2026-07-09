@@ -1,0 +1,19 @@
+const raw = [
+  ["ramen", "Ramen Shop", "ラーメン屋", "Order ramen, ask for recommendations, request water, and pay politely.", "Ramen shop waiter", "3–5 min", ["Ask for a seat", "Ask for a recommendation", "Order food", "Ask for water", "Pay politely"], ["すみません", "おすすめは何ですか？", "ラーメンを一つください", "お水をください", "お会計お願いします"], "Bowl", "cafe"],
+  ["cafe", "Cafe Order", "カフェ", "Order drinks, ask about sizes, request takeout, and pay.", "Cafe staff", "3–5 min", ["Order a drink", "Choose a size", "Ask for takeout", "Ask about milk", "Pay at the counter"], ["アイスコーヒーをください", "サイズは何がありますか？", "持ち帰りでお願いします", "砂糖なしでお願いします"], "Coffee", "store"],
+  ["store", "Convenience Store", "コンビニ", "Practice cashier interactions, bags, payment, and simple questions.", "Convenience store cashier", "3–5 min", ["Greet the cashier", "Understand payment questions", "Ask for a bag", "Choose payment method", "Thank naturally"], ["袋をください", "カードで払います", "レシートはいりません", "これをください"], "Store", "reservation"],
+  ["reservation", "Making a Reservation", "予約", "Book a table, give your name, time, and number of people.", "Restaurant receptionist", "4–6 min", ["Say the date and time", "Give number of people", "Give your name", "Confirm details"], ["予約をしたいです", "明日の七時は空いていますか？", "二人です", "名前は___です"], "Calendar", "allergies"],
+  ["allergies", "Asking About Allergies", "アレルギー", "Ask about ingredients, explain allergies, and confirm food is safe.", "Restaurant staff", "4–6 min", ["Explain an allergy", "Ask about ingredients", "Confirm the dish is safe", "Thank the staff"], ["アレルギーがあります", "これは卵が入っていますか？", "食べても大丈夫ですか？"], "Shield", "clothes"],
+  ["clothes", "Buying Clothes", "買い物", "Ask about size, color, fitting room, price, and checkout.", "Clothing store staff", "4–6 min", ["Ask for a size", "Ask for another color", "Find the fitting room", "Buy the item"], ["Mサイズはありますか？", "他の色はありますか？", "試着してもいいですか？"], "Shirt", "hotel"],
+  ["hotel", "Hotel Check-in", "ホテル", "Confirm your booking and ask about checkout and amenities.", "Hotel receptionist", "4–6 min", ["Give your reservation name", "Confirm your booking", "Ask about checkout", "Ask about Wi-Fi"], ["チェックインをお願いします", "予約しています", "チェックアウトは何時ですか？"], "Hotel", "train"],
+  ["train", "Train Station / Directions", "駅・道案内", "Ask where to go, which platform to use, and how to transfer.", "Station staff", "4–6 min", ["Ask for directions", "Ask about the platform", "Buy a ticket", "Confirm the train line"], ["___へ行きたいです", "何番線ですか？", "切符はどこで買えますか？"], "Train", "clinic"],
+  ["clinic", "Doctor / Clinic Visit", "クリニック", "Explain symptoms and understand simple instructions — language practice only.", "Clinic receptionist", "4–6 min", ["Explain symptoms", "Say when it started", "Answer questions", "Ask about medicine"], ["頭が痛いです", "昨日からです", "熱があります", "どうすればいいですか？"], "Stethoscope", "neighbor"],
+  ["neighbor", "Small Talk with Neighbor", "ご近所", "Practice greetings, weather, and friendly everyday conversation.", "Neighbor", "3–5 min", ["Greet naturally", "Talk about weather", "Say where you are from", "End politely"], ["おはようございます", "いい天気ですね", "フィリピンから来ました"], "Sun", "workplace"],
+  ["workplace", "Workplace Introduction", "職場", "Introduce yourself, explain your role, and meet your team.", "Coworker", "4–6 min", ["Say your name", "Say where you are from", "Explain your role", "Ask about the team"], ["はじめまして", "___と申します", "カスタマーサポートをしています"], "Briefcase", "interview"],
+  ["interview", "Job Interview Introduction", "面接", "Practice a professional introduction, experience, and strengths.", "Japanese interviewer", "5–7 min", ["Introduce yourself", "Explain your experience", "Talk about strengths", "Answer a follow-up"], ["自己紹介をさせていただきます", "問題解決が得意です", "よろしくお願いいたします"], "MessagesSquare", "ramen"]
+];
+
+export const scenarios = raw.map(([id, title, jp, description, role, time, goals, phrases, icon, next], i) => ({
+  id, title, jp, description, role, time, goals, phrases, icon, next,
+  levels: i > 8 ? ["N3", "N1"] : ["N5", "N3", "N1"]
+}));
