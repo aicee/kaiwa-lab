@@ -6,12 +6,22 @@ import { startElevenLabsSession } from "@/lib/apiPlaceholders";
 
 const safeErrorMessage = "Voice Mode could not connect. Please try again or continue with another mode.";
 
-function normalizeMessage({ id, role, text, isFinal }) {
+function getEventTimestamp(event) {
+  const value = event?.event_id ?? event?.eventId ?? event?.timestamp ?? event?.time;
+  return Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+function nextLocalOrder() {
+  return Date.now();
+}
+
+function normalizeMessage({ id, role, text, timestamp, receivedAt, isFinal }) {
   return {
     id,
     role,
     text,
-    timestamp: Date.now(),
+    timestamp: timestamp ?? receivedAt,
+    receivedAt,
     isFinal
   };
 }
@@ -28,7 +38,14 @@ function toTranscriptBubble(item) {
 function upsertTranscriptItem(items, nextItem) {
   const existingIndex = items.findIndex((item) => item.id === nextItem.id);
   if (existingIndex >= 0) {
-    return items.map((item, index) => index === existingIndex ? { ...item, ...nextItem } : item);
+    return items.map((item, index) => index === existingIndex ? {
+      ...item,
+      ...nextItem,
+      text: !nextItem.isFinal && item.text && nextItem.text && nextItem.text !== item.text && nextItem.text.length < item.text.length
+        ? `${item.text}${nextItem.text}`
+        : nextItem.text,
+      receivedAt: item.receivedAt ?? nextItem.receivedAt
+    } : item);
   }
 
   if (nextItem.isFinal && items.some((item) => item.isFinal && item.role === nextItem.role && item.text === nextItem.text)) {
@@ -36,6 +53,31 @@ function upsertTranscriptItem(items, nextItem) {
   }
 
   return [...items, nextItem];
+}
+
+function sortTranscriptItems(items) {
+  return [...items].sort((a, b) => {
+    const aOrder = a.timestamp ?? a.receivedAt ?? 0;
+    const bOrder = b.timestamp ?? b.receivedAt ?? 0;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return (a.receivedAt ?? 0) - (b.receivedAt ?? 0);
+  });
+}
+
+function cleanFinalTranscriptItems(items) {
+  const seenFinal = new Set();
+  return sortTranscriptItems(items)
+    .filter((item) => {
+      if (!item.isFinal) return true;
+      const key = `${item.role}:${item.text}`;
+      if (seenFinal.has(key)) return false;
+      seenFinal.add(key);
+      return true;
+    });
+}
+
+function finalizedTranscriptItems(items) {
+  return cleanFinalTranscriptItems(items).filter((item) => item.isFinal);
 }
 
 export function useKaiwaVoiceConversation() {
@@ -50,18 +92,25 @@ export function useKaiwaVoiceConversation() {
 
   const handleMessage = useCallback((message) => {
     const role = message.role === "agent" || message.source === "ai" ? "agent" : "user";
-    const id = message.event_id ? `${role}-${message.event_id}` : `${role}-${Date.now()}-${message.message}`;
+    const eventTimestamp = getEventTimestamp(message);
+    const receivedAt = nextLocalOrder();
+    const id = eventTimestamp !== null ? `${role}-${eventTimestamp}` : `${role}-${receivedAt}-${message.message}`;
 
     setTranscriptEvents((items) => {
-      const withoutPartial = agentPartRef.current && role === "agent"
-        ? items.filter((item) => item.id !== agentPartRef.current)
+      const withoutStalePartials = role === "agent"
+        ? items.filter((item) => item.isFinal || item.role !== "agent" || item.id === id)
         : items;
-      agentPartRef.current = role === "agent" ? null : agentPartRef.current;
 
-      return upsertTranscriptItem(withoutPartial, normalizeMessage({
+      if (role === "agent" && agentPartRef.current === id) {
+        agentPartRef.current = null;
+      }
+
+      return upsertTranscriptItem(withoutStalePartials, normalizeMessage({
         id,
         role,
         text: message.message,
+        timestamp: eventTimestamp,
+        receivedAt,
         isFinal: true
       }));
     });
@@ -86,26 +135,31 @@ export function useKaiwaVoiceConversation() {
     onMessage: handleMessage,
     onAgentChatResponsePart: (part) => {
       const text = part?.text || part?.text_response || part?.textResponse || "";
-      if (!text) return;
+      const eventTimestamp = getEventTimestamp(part);
+      if (!text || eventTimestamp === null || part?.type === "stop") return;
 
-      const id = agentPartRef.current || `agent-part-${Date.now()}`;
+      const id = `agent-${eventTimestamp}`;
       agentPartRef.current = id;
       setTranscriptEvents((items) => upsertTranscriptItem(items, normalizeMessage({
         id,
         role: "agent",
         text,
+        timestamp: eventTimestamp,
+        receivedAt: nextLocalOrder(),
         isFinal: false
       })));
     },
     onAgentResponseCorrection: (correction) => {
       const correctedText = correction?.corrected_agent_response || correction?.agent_response || "";
       const eventId = correction?.event_id;
-      if (!correctedText || !eventId) return;
+      if (!correctedText || eventId === undefined || eventId === null) return;
 
       setTranscriptEvents((items) => upsertTranscriptItem(items, normalizeMessage({
         id: `agent-${eventId}`,
         role: "agent",
         text: correctedText,
+        timestamp: getEventTimestamp(correction),
+        receivedAt: nextLocalOrder(),
         isFinal: true
       })));
     }
@@ -215,7 +269,10 @@ export function useKaiwaVoiceConversation() {
     releasePermissionStream();
   }, [releasePermissionStream]);
 
-  const transcript = useMemo(() => transcriptEvents.map(toTranscriptBubble), [transcriptEvents]);
+  const sortedTranscriptEvents = useMemo(() => cleanFinalTranscriptItems(transcriptEvents), [transcriptEvents]);
+  const finalTranscriptEvents = useMemo(() => finalizedTranscriptItems(transcriptEvents), [transcriptEvents]);
+  const transcript = useMemo(() => sortedTranscriptEvents.map(toTranscriptBubble), [sortedTranscriptEvents]);
+  const finalTranscript = useMemo(() => finalTranscriptEvents.map(toTranscriptBubble), [finalTranscriptEvents]);
 
   return {
     status: localStatus,
@@ -224,8 +281,10 @@ export function useKaiwaVoiceConversation() {
     isListening: conversation.isListening,
     conversationId,
     error,
-    transcriptEvents,
+    transcriptEvents: sortedTranscriptEvents,
     transcript,
+    finalTranscriptEvents,
+    finalTranscript,
     startVoiceSession,
     endVoiceSession,
     muteMicrophone,

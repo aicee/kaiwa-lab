@@ -35,6 +35,10 @@ function ConversationRoomContent({ scenario, settings, onEnd }) {
   const [help, setHelp] = useState(null);
   const [seconds, setSeconds] = useState(isVoiceMode ? 0 : 42);
   const [ending, setEnding] = useState(false);
+  const simpleHelpJapanese = useMemo(() => {
+    const phrase = scenario.usefulPhrases[0] || scenario.opening;
+    return phrase.replace(/どうぞ。?$/u, "").trim() || phrase;
+  }, [scenario.opening, scenario.usefulPhrases]);
   const sessionPayload = useMemo(() => buildElevenLabsDynamicVariables({
     scenario,
     level: settings.level,
@@ -108,8 +112,8 @@ function ConversationRoomContent({ scenario, settings, onEnd }) {
       level: settings.level,
       politeness: settings.politeness,
       goals: scenario.goals.map((goal, index) => ({ goal, completed: index < done })),
-      transcript,
-      voiceTranscriptEvents: voice.transcriptEvents,
+      transcript: isVoiceMode ? voice.finalTranscript : transcript,
+      voiceTranscriptEvents: isVoiceMode ? voice.finalTranscriptEvents : voice.transcriptEvents,
       conversationId: voice.conversationId,
       durationSeconds: seconds,
       mode: activeMode
@@ -124,9 +128,9 @@ function ConversationRoomContent({ scenario, settings, onEnd }) {
   };
   const explainLast = () => {
     if (isVoiceMode) {
-      voice.sendContextualUpdate("The learner said they do not understand. Briefly help in English, then continue the Japanese roleplay.");
+      voice.sendContextualUpdate("The learner explicitly asked for help. Give one short English explanation, then repeat your previous Japanese line in a shorter, simpler form. Do not add filler such as douzo/どうぞ unless it is essential. Continue the roleplay afterward in Japanese.");
     }
-    setHelp({type:"explain",label:"SIMPLE EXPLANATION",jp:lastAi?.jp || scenario.opening,romaji:lastAi?.romaji || "",en:lastAi?.en || "Ask for help in the conversation and the agent can explain briefly."});
+    setHelp({type:"explain",label:"SIMPLE EXPLANATION",jp:simpleHelpJapanese,romaji:"",en:"Short help: answer the main question simply, then keep going in Japanese."});
   };
   const repeatSlower = () => {
     if (isVoiceMode) {

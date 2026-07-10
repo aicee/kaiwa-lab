@@ -30,7 +30,7 @@ export default function LandingPage({ onSelect, onDemo }) {
             <p className="listening">Listening...</p>
             <div className="mini-transcript">
               <span className="avatar">花</span>
-              <div><small>HANASU AI</small><p>いらっしゃいませ。<br/>何名様ですか？</p><span>Welcome. How many people?</span></div>
+              <div><small>Kaiwa Lab Tutor</small><p>いらっしゃいませ。<br/>何名様ですか？</p><span>Welcome. How many people?</span></div>
             </div>
             <div className="goal-row"><span>Session goals</span><span>2 of 4</span></div>
             <div className="progress"><i style={{ width: "50%" }} /></div>
@@ -42,7 +42,7 @@ export default function LandingPage({ onSelect, onDemo }) {
       <section className="trust-strip"><div className="shell"><span>VOICE ROLEPLAY</span><i/><span>ADAPTIVE JLPT LEVELS</span><i/><span>REAL-WORLD SCENARIOS</span><i/><span>USEFUL FEEDBACK</span></div></section>
 
       <section className="section shell" id="how">
-        <div className="section-kicker">WHY HANASU</div>
+        <div className="section-kicker">WHY KAIWA LAB</div>
         <div className="section-heading"><h2>From “I understand it” to<br/><em>“I can say it.”</em></h2><p>Textbooks teach you the pieces. Kaiwa Lab helps you put them together in the moments that matter.</p></div>
         <div className="feature-grid">{features.map(([Icon, title, body], i) => <article className="feature" key={title}><span className="feature-num">0{i + 1}</span><div className="feature-icon"><Icon /></div><h3>{title}</h3><p>{body}</p></article>)}</div>
       </section>
