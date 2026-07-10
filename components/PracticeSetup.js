@@ -40,10 +40,10 @@ export default function PracticeSetup({
       <button className="back-link" onClick={onBack}><ArrowLeft/> All scenarios</button>
       <div className="setup-layout">
         <aside className="setup-summary">
-          <small>YOUR SCENARIO</small><span className="big-jp">{scenario.jp}</span><h1>{scenario.title}</h1><p>{scenario.description}</p>
-          <div className="role-box"><span>AI ROLE</span><b>{scenario.role}</b><span>ESTIMATED TIME</span><b>{scenario.time}</b></div>
+          <small>YOUR SCENARIO</small><span className="big-jp">{scenario.jp}</span><h1>{scenario.name}</h1><p>{scenario.description}</p>
+          <div className="role-box"><span>AI ROLE</span><b>{scenario.role}</b><span>ESTIMATED TIME</span><b>{scenario.estimatedTime}</b></div>
           <h4>Session goals</h4><ul>{scenario.goals.map(g => <li key={g}><Check/> {g}</li>)}</ul>
-          <div className="phrases-box"><small>USEFUL PHRASES</small>{scenario.phrases.slice(0,3).map(p => <span key={p}>{p}</span>)}</div>
+          <div className="phrases-box"><small>USEFUL PHRASES</small>{scenario.usefulPhrases.slice(0,3).map(p => <span key={p}>{p}</span>)}</div>
         </aside>
         <section className="setup-form">
           <div className="step-label">PRACTICE SETUP <span>01 / 03</span></div>

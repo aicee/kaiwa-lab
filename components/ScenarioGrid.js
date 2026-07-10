@@ -4,9 +4,9 @@ import { scenarios } from "@/data/scenarios";
 import { useState } from "react";
 
 const categories = [
-  { name: "Food & Shopping", ids: ["ramen", "cafe", "store", "reservation", "allergies", "clothes"] },
-  { name: "Travel & Daily Life", ids: ["hotel", "train", "clinic", "neighbor"] },
-  { name: "Work & Professional", ids: ["workplace", "interview"] }
+  "Food & Shopping",
+  "Travel & Daily Life",
+  "Work & Professional"
 ];
 
 export default function ScenarioGrid({ onSelect }) {
@@ -17,18 +17,17 @@ export default function ScenarioGrid({ onSelect }) {
     <>
       <div className="scenario-groups">
         {visibleCategories.map((category) => (
-          <section className="scenario-group" key={category.name}>
-            <h3 className="scenario-category">{category.name}</h3>
+          <section className="scenario-group" key={category}>
+            <h3 className="scenario-category">{category}</h3>
             <div className="scenario-grid">
-              {category.ids.map((id) => {
-                const s = scenarios.find((scenario) => scenario.id === id);
-                const index = scenarios.findIndex((scenario) => scenario.id === id);
+              {scenarios.filter((scenario) => scenario.category === category).map((s) => {
+                const index = scenarios.findIndex((scenario) => scenario.id === s.id);
                 const Icon = Icons[s.icon] || Icons.MessageCircle;
                 return <article className="scenario-card" key={s.id}>
                   <div className="scenario-head"><span className={`scenario-icon tone-${index % 4}`}><Icon /></span><div className="level-chips">{s.levels.map(x => <span key={x}>{x}</span>)}</div></div>
-                  <div><small className="jp-title">{s.jp}</small><h3>{s.title}</h3><p>{s.description}</p></div>
-                  <div className="scenario-role"><span>AI ROLE</span><b>{s.role}</b><i>·</i><span>{s.time}</span></div>
-                  <div className="phrase-preview"><span>TRY SAYING</span><b>{s.phrases[1] || s.phrases[0]}</b></div>
+                  <div><small className="jp-title">{s.jp}</small><h3>{s.name}</h3><p>{s.description}</p></div>
+                  <div className="scenario-role"><span>AI ROLE</span><b>{s.role}</b><i>·</i><span>{s.estimatedTime}</span></div>
+                  <div className="phrase-preview"><span>TRY SAYING</span><b>{s.usefulPhrases[1] || s.usefulPhrases[0]}</b></div>
                   <button onClick={() => onSelect(s)}>Start scenario <span>→</span></button>
                 </article>;
               })}

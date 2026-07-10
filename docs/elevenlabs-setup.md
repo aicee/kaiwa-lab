@@ -1,17 +1,45 @@
 # ElevenLabs Agent Setup
 
-Kaiwa Lab uses one ElevenLabs voice agent for live roleplay. The app passes dynamic session values such as scenario, role, level, politeness, romaji, translation, practice mode, and user goal. This avoids creating 12 separate agents.
+Kaiwa Lab uses one reusable ElevenLabs voice agent for live Japanese roleplay. The app passes scenario context and learner settings as dynamic variables; it does not create separate agents or scripted conversation trees.
 
-The final feedback report is generated separately by a backend OpenAI call after the session ends. This keeps voice conversation fast and natural while allowing richer review.
+The roleplay is flexible. The opening line may be controlled with `{{scenario_opening}}`, but every reply after that should be generated dynamically from what the learner actually says. The learner can answer in many valid ways, ask unexpected questions, or complete scenario goals in any order.
+
+The opening gives the conversation a reliable start, but it does not determine the learner's reply or the rest of the conversation.
 
 - Recommended agent name: **Kaiwa Lab**
 - Purpose: Japanese conversation roleplay tutor for real-life speaking practice
-- Primary language: Japanese
-- Secondary language: English
-- Voice: warm, clear, natural Japanese; avoid overly cute, anime, dramatic, or formal delivery
+- Primary spoken language: Japanese
+- Secondary spoken language: English only when the learner asks for help or says they do not understand
+- Voice: warm, clear, natural Japanese; avoid overly cute, anime, dramatic, or stiff delivery
 
-Dynamic variables:
+## Dynamic Variables
 
-`{{scenario_name}}`, `{{scenario_role}}`, `{{scenario_description}}`, `{{difficulty_level}}`, `{{politeness_mode}}`, `{{romaji_enabled}}`, `{{translation_enabled}}`, `{{practice_mode}}`, `{{user_goal}}`
+The app sends these values to the server route for Voice Mode:
 
-Use the system and first-message exports in `lib/elevenlabsAgentConfig.js`. Create/authorize a conversation from a secure server endpoint; never ship an ElevenLabs secret key to the browser.
+`{{scenario_name}}`, `{{scenario_role}}`, `{{scenario_description}}`, `{{scenario_opening}}`, `{{difficulty_level}}`, `{{politeness_mode}}`, `{{romaji_enabled}}`, `{{translation_enabled}}`, `{{practice_mode}}`, `{{user_goal}}`, `{{scenario_goals}}`, `{{useful_phrases}}`
+
+`scenario_goals` are flexible practice outcomes, not ordered steps. `useful_phrases` are optional learner support, not required answers.
+
+## First Message
+
+Leave the ElevenLabs dashboard First Message field empty.
+
+Do not send an app-generated first message such as "Start the session as...". The dashboard system prompt and the `scenario_opening` dynamic variable control the beginning.
+
+## Speaking Behavior
+
+ElevenLabs should speak natural Japanese dialogue.
+
+Romaji should not be spoken aloud. English translation should not automatically be spoken after every Japanese response. Romaji and translation are UI display options only. Spoken English should happen only when the learner asks for help or says they do not understand.
+
+TODO: If the live transcript format later includes separate Japanese, romaji, and English fields, render those separately in the UI instead of treating them as one spoken message.
+
+## Feedback
+
+Detailed correction happens after the session through OpenAI feedback. Goal completion should be evaluated from the completed transcript later, not from exact phrase checks during roleplay.
+
+Demo Mode and current Text Mode mock progress are preview behavior. They should remain separate from future real transcript analysis.
+
+## Security
+
+Create or authorize conversations from a secure server endpoint. Never ship `ELEVENLABS_API_KEY` or `ELEVENLABS_AGENT_ID` to the browser.
