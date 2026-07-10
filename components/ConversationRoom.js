@@ -3,15 +3,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ConversationProvider } from "@elevenlabs/react";
 import { AudioLines, Check, ChevronRight, CircleHelp, Languages, Lightbulb, Mic, Pause, Play, RotateCcw, Send, Square } from "lucide-react";
 import { mockTranscript } from "@/data/mockTranscript";
-import { useKaiwaVoiceConversation } from "@/hooks/useKaiwaVoiceConversation";
+import { demoAccessExpiredMessage, useKaiwaVoiceConversation } from "@/hooks/useKaiwaVoiceConversation";
 import { buildElevenLabsDynamicVariables } from "@/lib/scenarioPrompts";
 import TranscriptBubble from "./TranscriptBubble";
 
-export default function ConversationRoom({ scenario, settings, onEnd }) {
-  return <ConversationProvider><ConversationRoomContent scenario={scenario} settings={settings} onEnd={onEnd} /></ConversationProvider>;
+export default function ConversationRoom({ scenario, settings, onEnd, onVoiceAccessExpired }) {
+  return <ConversationProvider><ConversationRoomContent scenario={scenario} settings={settings} onEnd={onEnd} onVoiceAccessExpired={onVoiceAccessExpired} /></ConversationProvider>;
 }
 
-function ConversationRoomContent({ scenario, settings, onEnd }) {
+function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpired }) {
   const [activeMode, setActiveMode] = useState(settings.mode);
   const isDemoMode = activeMode === "Demo Mode";
   const isTextMode = activeMode === "Text Mode";
@@ -74,6 +74,11 @@ function ConversationRoomContent({ scenario, settings, onEnd }) {
     if (!isVoiceMode || !voice.isConnected || seconds < 300 || ending) return;
     endSession();
   }, [ending, isVoiceMode, seconds, voice.isConnected]);
+
+  useEffect(() => {
+    if (!isVoiceMode || voice.error !== demoAccessExpiredMessage) return;
+    onVoiceAccessExpired?.();
+  }, [isVoiceMode, onVoiceAccessExpired, voice.error]);
 
   const transcript = isVoiceMode ? voice.transcript : isTextMode ? textTranscript : scenarioTranscript.slice(0, count);
   // Demo and Text Mode goal progress is intentionally mock-only. Real goal completion

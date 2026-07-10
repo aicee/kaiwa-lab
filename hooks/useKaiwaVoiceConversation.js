@@ -5,6 +5,7 @@ import { useConversation } from "@elevenlabs/react";
 import { startElevenLabsSession } from "@/lib/apiPlaceholders";
 
 const safeErrorMessage = "Voice Mode could not connect. Please try again or continue with another mode.";
+export const demoAccessExpiredMessage = "Voice Mode needs a fresh demo code.";
 
 function getEventTimestamp(event) {
   const value = event?.event_id ?? event?.eventId ?? event?.timestamp ?? event?.time;
@@ -224,7 +225,9 @@ export function useKaiwaVoiceConversation() {
       startingRef.current = false;
       setError(startError?.name === "NotAllowedError"
         ? "Microphone access is needed for Voice Mode."
-        : safeErrorMessage);
+        : startError?.message === "Voice Mode requires demo access."
+          ? demoAccessExpiredMessage
+          : safeErrorMessage);
       setLocalStatus("Connection failed");
     }
   }, [conversation, releasePermissionStream]);

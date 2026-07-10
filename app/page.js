@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import { scenarios } from "@/data/scenarios";
 import { mockFeedback } from "@/data/mockFeedback";
 import { generateSessionFeedback } from "@/lib/apiPlaceholders";
+import { clearStoredDemoAccessToken, hasStoredDemoAccessToken, storeDemoAccessToken } from "@/lib/clientDemoAccess";
 
 export default function Home() {
   const [view, setView] = useState("home");
@@ -33,7 +34,7 @@ export default function Home() {
   }, [view]);
 
   useEffect(() => {
-    setVoiceUnlocked(Boolean(sessionStorage.getItem("kaiwaDemoAccessToken")));
+    setVoiceUnlocked(hasStoredDemoAccessToken());
   }, []);
 
   const chooseScenario = (item) => {
@@ -96,7 +97,7 @@ export default function Home() {
                   return;
                 }
 
-                sessionStorage.setItem("kaiwaDemoAccessToken", data.accessToken);
+                storeDemoAccessToken(data.accessToken);
                 setVoiceUnlocked(true);
                 setSettings((s) => ({ ...s, mode: "Voice Mode" }));
                 setUnlockMessage("Voice Mode unlocked for this session.");
@@ -122,6 +123,15 @@ export default function Home() {
               } finally {
                 setView("feedback");
               }
+            }}
+            onVoiceAccessExpired={() => {
+              clearStoredDemoAccessToken();
+              setVoiceUnlocked(false);
+              setUnlockError("Please enter the demo code again to use Voice Mode.");
+              setUnlockMessage("");
+              setSettings((s) => ({ ...s, mode: "Voice Mode" }));
+              setView("setup");
+              setShowDemoCodeModal(true);
             }}
           />
         )}
