@@ -9,8 +9,7 @@ import FeedbackReport from "@/components/FeedbackReport";
 import Footer from "@/components/Footer";
 import { scenarios } from "@/data/scenarios";
 import { mockFeedback } from "@/data/mockFeedback";
-import { generateSessionFeedback, startElevenLabsSession } from "@/lib/apiPlaceholders";
-import { buildElevenLabsDynamicVariables } from "@/lib/scenarioPrompts";
+import { generateSessionFeedback } from "@/lib/apiPlaceholders";
 
 export default function Home() {
   const [view, setView] = useState("home");
@@ -59,29 +58,11 @@ export default function Home() {
             settings={settings}
             setSettings={setSettings}
             onBack={() => goHome("#scenarios")}
-            onStart={async () => {
+            onStart={() => {
               if (settings.mode === "Voice Mode" && !voiceUnlocked) {
                 setShowDemoCodeModal(true);
                 return;
               }
-
-              if (settings.mode === "Voice Mode") {
-                const sessionPayload = buildElevenLabsDynamicVariables({
-                  scenario,
-                  level: settings.level,
-                  politenessMode: settings.politeness,
-                  showRomaji: settings.romaji,
-                  showTranslation: settings.translation,
-                  practiceMode: "Voice Mode"
-                });
-
-                try {
-                  await startElevenLabsSession(sessionPayload);
-                } catch (error) {
-                  console.warn("Voice session is not fully connected yet; continuing with the current practice room.", error);
-                }
-              }
-
               setView("conversation");
             }}
             voiceUnlocked={voiceUnlocked}

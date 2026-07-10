@@ -42,4 +42,6 @@ Demo Mode and current Text Mode mock progress are preview behavior. They should 
 
 ## Security
 
-Create or authorize conversations from a secure server endpoint. Never ship `ELEVENLABS_API_KEY` or `ELEVENLABS_AGENT_ID` to the browser.
+Voice Mode starts by calling `/api/elevenlabs/session` after demo access is validated. That server route uses `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` to request a temporary ElevenLabs conversation credential, preferring `/v1/convai/conversation/token` and falling back to `/v1/convai/conversation/get-signed-url`.
+
+The browser receives only the temporary `conversationToken` or `signedUrl` plus the dynamic variables. Never ship `ELEVENLABS_API_KEY` or `ELEVENLABS_AGENT_ID` to the browser.

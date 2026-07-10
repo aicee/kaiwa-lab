@@ -5,6 +5,44 @@ import {
   requiredElevenLabsDynamicVariables
 } from "@/lib/elevenlabsAgentConfig";
 
+async function requestTemporaryCredential(agentId) {
+  const url = new URL("https://api.elevenlabs.io/v1/convai/conversation/token");
+  url.searchParams.set("agent_id", agentId);
+
+  const tokenResponse = await fetch(url, {
+    method: "GET",
+    headers: {
+      "xi-api-key": process.env.ELEVENLABS_API_KEY
+    },
+    cache: "no-store"
+  });
+
+  const tokenData = await tokenResponse.json().catch(() => ({}));
+
+  if (tokenResponse.ok && (tokenData?.token || tokenData?.conversation_token)) {
+    return { conversationToken: tokenData.token || tokenData.conversation_token };
+  }
+
+  const signedUrl = new URL("https://api.elevenlabs.io/v1/convai/conversation/get-signed-url");
+  signedUrl.searchParams.set("agent_id", agentId);
+
+  const signedResponse = await fetch(signedUrl, {
+    method: "GET",
+    headers: {
+      "xi-api-key": process.env.ELEVENLABS_API_KEY
+    },
+    cache: "no-store"
+  });
+
+  const signedData = await signedResponse.json().catch(() => ({}));
+
+  if (signedResponse.ok && (signedData?.signed_url || signedData?.signedUrl)) {
+    return { signedUrl: signedData.signed_url || signedData.signedUrl };
+  }
+
+  throw new Error("Unable to create ElevenLabs temporary conversation credential.");
+}
+
 export async function POST(request) {
   let sessionConfig;
 
@@ -68,16 +106,22 @@ export async function POST(request) {
     dynamic_variables: dynamicVariables
   };
 
-  // TODO: Create a signed ElevenLabs Conversational AI session on the server.
-  // TODO: POST elevenLabsPayload to the ElevenLabs session/conversation endpoint
-  // with ELEVENLABS_API_KEY in the server-only Authorization header.
-  // TODO: Return only the signed client session details needed by the browser.
-  return NextResponse.json(
-    {
+  try {
+    const temporaryCredential = await requestTemporaryCredential(elevenLabsPayload.agent_id);
+
+    return NextResponse.json({
       success: true,
-      status: "placeholder",
-      message: "ElevenLabs credentials are configured; live session creation is the next integration step.",
+      ...temporaryCredential,
       dynamicVariables
-    }
-  );
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unable to start Voice Mode right now. Please try again or continue with Demo Mode.",
+        demoModeAvailable: true
+      },
+      { status: 502 }
+    );
+  }
 }
