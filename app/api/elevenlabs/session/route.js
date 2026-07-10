@@ -92,11 +92,6 @@ export async function POST(request) {
     );
   }
 
-  const limit = reserveLiveVoiceSession(access.sessionId || "direct-code");
-  if (!limit.success) {
-    return NextResponse.json(limit, { status: 429 });
-  }
-
   const dynamicVariables = Object.fromEntries(
     elevenLabsDynamicVariableNames.map((field) => [field, String(sessionConfig?.[field] || "")])
   );
@@ -108,6 +103,10 @@ export async function POST(request) {
 
   try {
     const temporaryCredential = await requestTemporaryCredential(elevenLabsPayload.agent_id);
+    const limit = reserveLiveVoiceSession(access.sessionId || "direct-code");
+    if (!limit.success) {
+      return NextResponse.json(limit, { status: 429 });
+    }
 
     return NextResponse.json({
       success: true,
