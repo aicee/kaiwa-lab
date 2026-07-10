@@ -6,6 +6,7 @@ import { startElevenLabsSession } from "@/lib/apiPlaceholders";
 
 const safeErrorMessage = "Voice Mode could not connect. Please try again or continue with another mode.";
 export const demoAccessExpiredMessage = "Voice Mode needs a fresh demo code.";
+let voiceSessionStartInFlight = false;
 
 function getEventTimestamp(event) {
   const value = event?.event_id ?? event?.eventId ?? event?.timestamp ?? event?.time;
@@ -122,16 +123,19 @@ export function useKaiwaVoiceConversation() {
       setConversationId(connectedId);
       setLocalStatus("Connected");
       startingRef.current = false;
+      voiceSessionStartInFlight = false;
       setError("");
     },
     onDisconnect: () => {
       setLocalStatus((current) => current === "Ended" ? current : "Ended");
       startingRef.current = false;
+      voiceSessionStartInFlight = false;
     },
     onError: () => {
       setError(safeErrorMessage);
       setLocalStatus("Connection failed");
       startingRef.current = false;
+      voiceSessionStartInFlight = false;
     },
     onMessage: handleMessage,
     onAgentChatResponsePart: (part) => {
@@ -183,15 +187,24 @@ export function useKaiwaVoiceConversation() {
     }
     releasePermissionStream();
     startingRef.current = false;
+    voiceSessionStartInFlight = false;
     setLocalStatus("Ended");
   }, [conversation, releasePermissionStream]);
 
   const startVoiceSession = useCallback(async (sessionConfig) => {
-    if (startingRef.current || conversation.status === "connecting" || conversation.status === "connected") {
+    const isBusy = startingRef.current ||
+      voiceSessionStartInFlight ||
+      localStatus === "Waiting for microphone" ||
+      localStatus === "Connecting" ||
+      conversation.status === "connecting" ||
+      conversation.status === "connected";
+
+    if (isBusy) {
       return;
     }
 
     startingRef.current = true;
+    voiceSessionStartInFlight = true;
     setError("");
     setLocalStatus("Waiting for microphone");
 
@@ -223,14 +236,15 @@ export function useKaiwaVoiceConversation() {
     } catch (startError) {
       releasePermissionStream();
       startingRef.current = false;
+      voiceSessionStartInFlight = false;
       setError(startError?.name === "NotAllowedError"
         ? "Microphone access is needed for Voice Mode."
-        : startError?.message === "Voice Mode requires demo access."
+        : startError?.code === "INVALID_DEMO_ACCESS" || startError?.message === "Voice Mode requires demo access."
           ? demoAccessExpiredMessage
           : safeErrorMessage);
       setLocalStatus("Connection failed");
     }
-  }, [conversation, releasePermissionStream]);
+  }, [conversation, localStatus, releasePermissionStream]);
 
   const muteMicrophone = useCallback(() => {
     conversation.setMuted(true);

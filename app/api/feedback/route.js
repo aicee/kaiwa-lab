@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { mockFeedback } from "@/data/mockFeedback";
-import { checkLiveFeedbackLimits, validateDemoAccessToken } from "@/lib/demoAccess";
+import { checkLiveFeedbackLimits, DEMO_ACCESS_COOKIE_NAME, validateDemoAccessToken } from "@/lib/demoAccess";
 
 export async function POST(request) {
   let sessionData;
@@ -20,7 +20,7 @@ export async function POST(request) {
     });
   }
 
-  const access = validateDemoAccessToken(sessionData?.demoAccessToken);
+  const access = validateDemoAccessToken(request.cookies.get(DEMO_ACCESS_COOKIE_NAME)?.value);
   if (!access.success) {
     return NextResponse.json({
       feedback: mockFeedback,

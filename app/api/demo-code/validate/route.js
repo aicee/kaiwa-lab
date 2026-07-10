@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { createDemoAccessToken, validateDemoCode } from "@/lib/demoAccess";
+import {
+  createDemoAccessToken,
+  DEMO_ACCESS_COOKIE_NAME,
+  DEMO_ACCESS_MAX_AGE_SECONDS,
+  validateDemoCode
+} from "@/lib/demoAccess";
 
 export async function POST(request) {
   let payload;
@@ -16,8 +21,20 @@ export async function POST(request) {
     return NextResponse.json(result, { status: process.env.DEMO_ACCESS_CODE ? 401 : 503 });
   }
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     success: true,
-    accessToken: createDemoAccessToken()
+    unlocked: true
   });
+
+  response.cookies.set({
+    name: DEMO_ACCESS_COOKIE_NAME,
+    value: createDemoAccessToken(),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: DEMO_ACCESS_MAX_AGE_SECONDS
+  });
+
+  return response;
 }

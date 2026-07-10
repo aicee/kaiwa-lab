@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { reserveLiveVoiceSession, validateDemoAccessToken, validateDemoCode } from "@/lib/demoAccess";
+import { DEMO_ACCESS_COOKIE_NAME, reserveLiveVoiceSession, validateDemoAccessToken } from "@/lib/demoAccess";
 import {
   elevenLabsDynamicVariableNames,
   requiredElevenLabsDynamicVariables
@@ -67,13 +67,16 @@ export async function POST(request) {
     );
   }
 
-  const accessToken = sessionConfig?.demoAccessToken;
-  const code = sessionConfig?.demoCode;
-  const access = accessToken ? validateDemoAccessToken(accessToken) : validateDemoCode(code);
+  const accessToken = request.cookies.get(DEMO_ACCESS_COOKIE_NAME)?.value;
+  const access = validateDemoAccessToken(accessToken);
 
   if (!access.success) {
     return NextResponse.json(
-      { success: false, message: "Voice Mode requires demo access." },
+      {
+        success: false,
+        code: "INVALID_DEMO_ACCESS",
+        message: "Voice Mode requires demo access."
+      },
       { status: 403 }
     );
   }

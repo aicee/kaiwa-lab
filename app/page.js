@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import LandingPage from "@/components/LandingPage";
 import PracticeSetup from "@/components/PracticeSetup";
@@ -10,7 +10,12 @@ import Footer from "@/components/Footer";
 import { scenarios } from "@/data/scenarios";
 import { mockFeedback } from "@/data/mockFeedback";
 import { generateSessionFeedback } from "@/lib/apiPlaceholders";
-import { clearStoredDemoAccessToken, hasStoredDemoAccessToken, storeDemoAccessToken } from "@/lib/clientDemoAccess";
+import {
+  clearStoredDemoAccessHint,
+  hasStoredDemoAccessHint,
+  refreshDemoAccessHint,
+  storeDemoAccessHint
+} from "@/lib/clientDemoAccess";
 
 export default function Home() {
   const [view, setView] = useState("home");
@@ -28,14 +33,54 @@ export default function Home() {
   const [unlockError, setUnlockError] = useState("");
   const [unlocking, setUnlocking] = useState(false);
   const [showDemoCodeModal, setShowDemoCodeModal] = useState(false);
+  const checkingVoiceAccessRef = useRef(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [view]);
 
   useEffect(() => {
-    setVoiceUnlocked(hasStoredDemoAccessToken());
+    let cancelled = false;
+    setVoiceUnlocked(hasStoredDemoAccessHint());
+
+    refreshDemoAccessHint()
+      .then((unlocked) => {
+        if (!cancelled) setVoiceUnlocked(unlocked);
+      })
+      .catch(() => {
+        clearStoredDemoAccessHint();
+        if (!cancelled) setVoiceUnlocked(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const requireVoiceAccess = async () => {
+    if (checkingVoiceAccessRef.current) return false;
+    checkingVoiceAccessRef.current = true;
+
+    try {
+      const unlocked = await refreshDemoAccessHint();
+      setVoiceUnlocked(unlocked);
+      if (!unlocked) {
+        setUnlockMessage("");
+        setUnlockError("Your demo access expired. Enter the demo code again to continue.");
+        setShowDemoCodeModal(true);
+      }
+      return unlocked;
+    } catch {
+      clearStoredDemoAccessHint();
+      setVoiceUnlocked(false);
+      setUnlockMessage("");
+      setUnlockError("Your demo access expired. Enter the demo code again to continue.");
+      setShowDemoCodeModal(true);
+      return false;
+    } finally {
+      checkingVoiceAccessRef.current = false;
+    }
+  };
 
   const chooseScenario = (item) => {
     setScenario(item);
@@ -59,10 +104,12 @@ export default function Home() {
             settings={settings}
             setSettings={setSettings}
             onBack={() => goHome("#scenarios")}
-            onStart={() => {
-              if (settings.mode === "Voice Mode" && !voiceUnlocked) {
-                setShowDemoCodeModal(true);
-                return;
+            onStart={async () => {
+              if (settings.mode === "Voice Mode") {
+                const unlocked = await requireVoiceAccess();
+                if (!unlocked) {
+                  return;
+                }
               }
               setView("conversation");
             }}
@@ -87,17 +134,18 @@ export default function Home() {
               try {
                 const response = await fetch("/api/demo-code/validate", {
                   method: "POST",
+                  credentials: "same-origin",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ code })
                 });
                 const data = await response.json();
 
-                if (!data.success || !data.accessToken) {
+                if (!data.success || !data.unlocked) {
                   setUnlockError("That code did not work. You can still use Demo Mode.");
                   return;
                 }
 
-                storeDemoAccessToken(data.accessToken);
+                storeDemoAccessHint();
                 setVoiceUnlocked(true);
                 setSettings((s) => ({ ...s, mode: "Voice Mode" }));
                 setUnlockMessage("Voice Mode unlocked for this session.");
@@ -125,9 +173,9 @@ export default function Home() {
               }
             }}
             onVoiceAccessExpired={() => {
-              clearStoredDemoAccessToken();
+              clearStoredDemoAccessHint();
               setVoiceUnlocked(false);
-              setUnlockError("Please enter the demo code again to use Voice Mode.");
+              setUnlockError("Your demo access expired. Enter the demo code again to continue.");
               setUnlockMessage("");
               setSettings((s) => ({ ...s, mode: "Voice Mode" }));
               setView("setup");
