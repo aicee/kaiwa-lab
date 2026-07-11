@@ -81,6 +81,11 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   }, [ending, isVoiceMode, seconds, voice.isConnected]);
 
   useEffect(() => {
+    if (!isVoiceMode || ending || !voiceStartedRef.current || voice.status !== "Ended" || voice.finalTranscriptEvents.length === 0) return;
+    endSession();
+  }, [ending, isVoiceMode, voice.finalTranscriptEvents.length, voice.status]);
+
+  useEffect(() => {
     if (!isVoiceMode || voice.error !== demoAccessExpiredMessage) return;
     onVoiceAccessExpired?.();
   }, [isVoiceMode, onVoiceAccessExpired, voice.error]);
@@ -143,18 +148,46 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     if (endingRef.current) return;
     endingRef.current = true;
     setEnding(true);
-    if (isVoiceMode) voice.endVoiceSession();
-    await onEnd({
-      scenario: { id: scenario.id, name: scenario.name, role: scenario.role },
+    const endedAt = new Date().toISOString();
+    const finalizedVoiceTranscript = isVoiceMode ? voice.getFinalTranscript() : null;
+    const sessionResult = {
+      scenario: {
+        id: scenario.id,
+        name: scenario.name,
+        role: scenario.role,
+        description: scenario.description,
+        goals: scenario.goals,
+        usefulPhrases: scenario.usefulPhrases
+      },
       level: settings.level,
+      politenessMode: settings.politeness,
       politeness: settings.politeness,
       goals: scenario.goals.map((goal, index) => ({ goal, completed: index < done })),
-      transcript: isVoiceMode ? voice.finalTranscript : transcript,
-      voiceTranscriptEvents: isVoiceMode ? voice.finalTranscriptEvents : voice.transcriptEvents,
-      conversationId: voice.conversationId,
+      transcript: isVoiceMode ? finalizedVoiceTranscript : transcript,
+      voiceTranscriptEvents: isVoiceMode ? finalizedVoiceTranscript : voice.transcriptEvents,
+      conversationId: isVoiceMode ? voice.conversationId : null,
+      duration: seconds,
       durationSeconds: seconds,
+      endedAt,
+      practiceMode: activeMode,
       mode: activeMode
-    });
+    };
+
+    if (process.env.NODE_ENV === "development" && isVoiceMode) {
+      console.info("Kaiwa Voice session finalized", {
+        conversationId: sessionResult.conversationId,
+        scenario: sessionResult.scenario?.name,
+        level: sessionResult.level,
+        politenessMode: sessionResult.politenessMode,
+        practiceMode: sessionResult.practiceMode,
+        duration: sessionResult.duration,
+        endedAt: sessionResult.endedAt,
+        transcript: sessionResult.transcript
+      });
+    }
+
+    if (isVoiceMode && voice.isConnected) voice.endVoiceSession();
+    await onEnd(sessionResult);
   };
   const showHint = () => {
     const phrase = scenario.usefulPhrases[Math.min(2,scenario.usefulPhrases.length-1)];
@@ -198,7 +231,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
         {isVoiceMode && voice.error && <div className="demo-banner"><AudioLines/> <b>{voice.error}</b> <button type="button" onClick={() => voice.startVoiceSession(sessionPayload)}>Try again</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Demo Mode"); }}>Continue with Demo Mode</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Text Mode"); }}>Continue with Text Mode</button></div>}
         <div className="voice-stage"><span className="speaking-label">● {roomStatus.toUpperCase()}</span><div className="room-orb"><i/><i/><span><AudioLines/></span></div><p>{lastAi?.jp || (isVoiceMode ? "Voice Mode is getting ready…" : scenario.opening)}</p>{romaji && <i>{lastAi?.romaji}</i>}</div>
         <div className="transcript-title"><b>Conversation</b><span>LIVE TRANSCRIPT</span></div>
-        <div className="transcript">{transcript.map((m,i)=><TranscriptBubble key={i} message={m} romaji={romaji} translation={translation}/>)}</div>
+        <div className="transcript">{transcript.map((m,i)=><TranscriptBubble key={isVoiceMode ? voice.transcriptEvents[i]?.id || i : i} message={m} romaji={romaji} translation={translation}/>)}</div>
         {help && <div className={`help-card ${help.type}`}><button onClick={()=>setHelp(null)}>×</button><small>{help.label}</small><b>{help.jp}</b>{romaji && <i>{help.romaji}</i>}<span>{help.en}</span></div>}
         <div ref={transcriptEndRef} aria-hidden="true" />
         {isVoiceMode && showJumpLatest && <button type="button" className="jump-latest" onClick={scrollToLatest}>Jump to latest</button>}

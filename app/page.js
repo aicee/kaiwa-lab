@@ -28,6 +28,7 @@ export default function Home() {
     translation: true
   });
   const [feedback, setFeedback] = useState(mockFeedback);
+  const [sessionResult, setSessionResult] = useState(null);
   const [voiceUnlocked, setVoiceUnlocked] = useState(false);
   const [unlockMessage, setUnlockMessage] = useState("");
   const [unlockError, setUnlockError] = useState("");
@@ -163,6 +164,7 @@ export default function Home() {
             scenario={scenario}
             settings={settings}
             onEnd={async (sessionData) => {
+              setSessionResult(sessionData);
               try {
                 setFeedback(await generateSessionFeedback(sessionData));
               } catch (error) {
@@ -188,6 +190,7 @@ export default function Home() {
             scenario={scenario}
             settings={settings}
             feedback={feedback}
+            sessionResult={sessionResult}
             onRestart={() => setView("conversation")}
             onHarder={() => {
               setSettings((s) => ({ ...s, level: s.level === "N5 Beginner" ? "N3 Intermediate" : "N1 Advanced" }));
