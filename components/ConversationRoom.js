@@ -176,11 +176,15 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     setHelp({type:"slower",label:"REPEAT SLOWER",jp:lastAi?.jp || scenario.opening,romaji:lastAi?.romaji || "",en:lastAi?.en || "The agent can repeat more slowly during Voice Mode."});
   };
   const formattedDuration = `${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
+  const composer = <div className="composer"><button className="mic-button" type="button" onClick={isVoiceMode && voice.isConnected ? voice.isListening ? voice.muteMicrophone : voice.unmuteMicrophone : undefined}>{isVoiceMode && voice.status === "Muted" ? <Pause/> : <Mic/>}</button><textarea rows="1" placeholder={isDemoMode ? "Demo responses are pre-filled…" : isVoiceMode ? "Voice Mode uses your microphone…" : "Type your response in Japanese…"} disabled={isDemoMode || isVoiceMode} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown}/><button type="button" onClick={sendTextMessage} disabled={!isTextMode || !draft.trim()} aria-label="Send message"><Send/></button></div>;
   return <div className={`app-screen conversation-page ${isVoiceMode ? "voice-session-active" : ""}`}>
     <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.name}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{settings.level.split(" ")[0]}</span><span>{settings.politeness}</span><span>{activeMode}</span><b>{formattedDuration}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Generating feedback…" : "End session"}</button></div></header>
-    {isVoiceMode && <div className="mobile-live-session-bar" role="region" aria-label="Live Voice Mode session controls">
-      <div><b>{formattedDuration}</b><span> · {ending ? "Ending session" : roomStatus}</span></div>
-      <button type="button" onClick={endSession} disabled={ending}>{ending ? "Ending…" : "End session"}</button>
+    {isVoiceMode && <div className="mobile-bottom-dock" role="region" aria-label="Live Voice Mode controls">
+      {composer}
+      <div className="mobile-live-session-bar">
+        <div><b>{formattedDuration}</b><span> · {ending ? "Ending session" : roomStatus}</span></div>
+        <button type="button" onClick={endSession} disabled={ending}>{ending ? "Ending…" : "End session"}</button>
+      </div>
     </div>}
     <div className="room-layout">
       <aside className="goals-panel">
@@ -199,7 +203,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
         <div ref={transcriptEndRef} aria-hidden="true" />
         {isVoiceMode && showJumpLatest && <button type="button" className="jump-latest" onClick={scrollToLatest}>Jump to latest</button>}
         {isDemoMode && count < scenarioTranscript.length && <button className="btn btn-red demo-next" onClick={next}>Play next message <Play/> </button>}
-        <div className="composer"><button className="mic-button" type="button" onClick={isVoiceMode && voice.isConnected ? voice.isListening ? voice.muteMicrophone : voice.unmuteMicrophone : undefined}>{isVoiceMode && voice.status === "Muted" ? <Pause/> : <Mic/>}</button><textarea rows="1" placeholder={isDemoMode ? "Demo responses are pre-filled…" : isVoiceMode ? "Voice Mode uses your microphone…" : "Type your response in Japanese…"} disabled={isDemoMode || isVoiceMode} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown}/><button type="button" onClick={sendTextMessage} disabled={!isTextMode || !draft.trim()} aria-label="Send message"><Send/></button></div>
+        <div className={isVoiceMode ? "voice-inline-composer" : ""}>{composer}</div>
       </section>
       <aside className="help-panel">
         <small>LIVE HELP</small><h3>Need a hand?</h3>
