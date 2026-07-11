@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DEMO_ACCESS_COOKIE_NAME, reserveLiveVoiceSession, validateDemoAccessToken } from "@/lib/demoAccess";
+import { DEMO_ACCESS_COOKIE_NAME, validateDemoAccessToken } from "@/lib/demoAccess";
 import {
   elevenLabsDynamicVariableNames,
   requiredElevenLabsDynamicVariables
@@ -69,6 +69,14 @@ export async function POST(request) {
 
   const accessToken = request.cookies.get(DEMO_ACCESS_COOKIE_NAME)?.value;
   const access = validateDemoAccessToken(accessToken);
+  const voiceRequestEligible = access.success && missingRequiredFields.length === 0;
+
+  if (process.env.NODE_ENV === "development") {
+    console.info("Kaiwa voice access", {
+      demoAccessValid: access.success,
+      voiceRequestEligible
+    });
+  }
 
   if (!access.success) {
     return NextResponse.json(
@@ -106,10 +114,6 @@ export async function POST(request) {
 
   try {
     const temporaryCredential = await requestTemporaryCredential(elevenLabsPayload.agent_id);
-    const limit = reserveLiveVoiceSession(access.sessionId || "direct-code");
-    if (!limit.success) {
-      return NextResponse.json(limit, { status: 429 });
-    }
 
     return NextResponse.json({
       success: true,
