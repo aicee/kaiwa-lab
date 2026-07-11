@@ -82,6 +82,25 @@ function goalLabel(status) {
   return "Not completed";
 }
 
+function containsJapanese(text) {
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(text || "");
+}
+
+function isEnglishHelpPhrase(text) {
+  const normalized = (text || "").trim().toLowerCase().replace(/[.!?]+$/, "");
+  return normalized === "i don't understand" || normalized === "i dont understand";
+}
+
+function getDisplayFeedback(feedback) {
+  return {
+    ...feedback,
+    misunderstoodLanguage: feedback.misunderstoodLanguage.filter((item) => (
+      containsJapanese(item.japanese) &&
+      !isEnglishHelpPhrase(item.japanese)
+    ))
+  };
+}
+
 function buildSummary({ scenario, settings, duration, feedback, nextScenario }) {
   const lines = [
     "Kaiwa Lab Practice Summary",
@@ -111,7 +130,7 @@ function buildSummary({ scenario, settings, duration, feedback, nextScenario }) 
   lines.push(
     "",
     "Natural phrases:",
-    ...feedback.naturalPhrases.map((item) => `- ${item.japanese}${item.romaji ? ` (${item.romaji})` : ""}: ${item.english}`),
+    ...feedback.naturalPhrases.map((item) => `- ${item.japanese}${item.romaji ? ` (${item.romaji})` : ""}: ${item.english}. ${item.reason}`),
     "",
     "Vocabulary:",
     ...feedback.vocabulary.map((item) => `- ${item.japanese}${item.romaji ? ` (${item.romaji})` : ""}: ${item.english}`),
@@ -128,7 +147,7 @@ function buildSummary({ scenario, settings, duration, feedback, nextScenario }) 
 
 export default function FeedbackReport({ scenario, settings, feedback, sessionResult, onRestart, onHarder, onNext }) {
   const [copied, setCopied] = useState(false);
-  const f = useMemo(() => normalizeFeedback(feedback, scenario), [feedback, scenario]);
+  const f = useMemo(() => getDisplayFeedback(normalizeFeedback(feedback, scenario)), [feedback, scenario]);
   const duration = formatDuration(sessionResult?.duration || sessionResult?.durationSeconds);
   const nextScenario = scenarios.find((item) => item.id === f.suggestedNextScenario.scenarioId);
   const completedGoals = f.goalCompletion.filter((item) => item.status === "completed").length;
@@ -154,7 +173,7 @@ export default function FeedbackReport({ scenario, settings, feedback, sessionRe
         <section><div className="report-section-title"><span><Sparkles/></span><div><small>01</small><h2>What you did well</h2></div></div><ul className="win-list">{f.strengths.map((x)=><li key={`${x.title}:${x.evidence}`}><CheckCircle2/><span><b>{x.title}</b>{x.explanation}<small>{x.evidence}</small></span></li>)}</ul></section>
         <section><div className="report-section-title red"><span>直</span><div><small>02</small><h2>{correctionTitle}</h2></div></div>{f.corrections.length ? f.corrections.map(c=><div className="correction-card" key={`${c.userSaid}:${c.betterJapanese}`}><div><small>YOU SAID</small><del>{c.userSaid}</del></div><ArrowRight/><div><small>MORE NATURAL</small><b>{c.betterJapanese}</b>{c.romaji && <i>{c.romaji}</i>}</div><p><strong>Why:</strong> {c.explanation}</p></div>) : <div className="practice-focus"><h3>{f.keyFocus.title}</h3><p>{f.keyFocus.explanation}</p><b>{f.keyFocus.practiceExample}</b></div>}</section>
         {f.misunderstoodLanguage.length > 0 && <section><div className="report-section-title green"><span>聞</span><div><small>03</small><h2>Words or phrases to review</h2></div></div><div className="vocab-grid">{f.misunderstoodLanguage.map((item)=><div key={`${item.japanese}:${item.learnerContext}`}><b>{item.japanese}</b><i>{item.romaji || item.reading}</i><span>{item.english}</span><small>{item.explanation}</small></div>)}</div></section>}
-        <section><div className="report-section-title"><span>言</span><div><small>{f.misunderstoodLanguage.length ? "04" : "03"}</small><h2>Natural phrases for next time</h2></div></div><div className="natural-list">{f.naturalPhrases.map((x,i)=><div key={`${x.japanese}:${x.reason}`}><span>0{i+1}</span><b>{x.japanese}</b><i>{x.romaji}</i><small>{x.english} · {x.reason}</small></div>)}</div></section>
+        <section><div className="report-section-title"><span>言</span><div><small>{f.misunderstoodLanguage.length ? "04" : "03"}</small><h2>Natural phrases for next time</h2></div></div><div className="natural-list">{f.naturalPhrases.map((x,i)=><div key={`${x.japanese}:${x.reason}`}><span>0{i+1}</span><div><b>{x.japanese}</b><i>{x.romaji}</i><small><strong>{x.english}</strong> · {x.reason}</small></div></div>)}</div></section>
         <section><div className="report-section-title green"><span>語</span><div><small>{f.misunderstoodLanguage.length ? "05" : "04"}</small><h2>New vocabulary</h2></div></div><div className="vocab-grid">{f.vocabulary.map((item)=><div key={`${item.japanese}:${item.english}`}><b>{item.japanese}</b><i>{item.romaji || item.reading}</i><span>{item.english}</span><small>{item.context}</small></div>)}</div></section>
         <div className="notes-grid"><section><small>GRAMMAR NOTE</small><h3>{f.grammarNote.title}</h3><p>{f.grammarNote.explanation}</p></section><section><small>POLITENESS NOTE</small><h3>{f.politenessNote.title}</h3><p>{f.politenessNote.explanation}</p></section></div>
         <section><div className="report-section-title"><span>焦</span><div><small>FOCUS</small><h2>One thing to focus on next</h2></div></div><div className="practice-focus"><h3>{f.keyFocus.title}</h3><p>{f.keyFocus.explanation}</p><b>{f.keyFocus.practiceExample}</b></div></section>
