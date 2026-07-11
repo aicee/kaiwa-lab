@@ -12,6 +12,7 @@
     "@elevenlabs/react": "^1.9.1",
     "lucide-react": "^0.468.0",
     "next": "^14.2.21",
+    "openai": "^6.46.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   }

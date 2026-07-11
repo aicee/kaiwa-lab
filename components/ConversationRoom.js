@@ -211,12 +211,12 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   const formattedDuration = `${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
   const composer = <div className="composer"><button className="mic-button" type="button" onClick={isVoiceMode && voice.isConnected ? voice.isListening ? voice.muteMicrophone : voice.unmuteMicrophone : undefined}>{isVoiceMode && voice.status === "Muted" ? <Pause/> : <Mic/>}</button><textarea rows="1" placeholder={isDemoMode ? "Demo responses are pre-filled…" : isVoiceMode ? "Voice Mode uses your microphone…" : "Type your response in Japanese…"} disabled={isDemoMode || isVoiceMode} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown}/><button type="button" onClick={sendTextMessage} disabled={!isTextMode || !draft.trim()} aria-label="Send message"><Send/></button></div>;
   return <div className={`app-screen conversation-page ${isVoiceMode ? "voice-session-active" : ""}`}>
-    <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.name}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{settings.level.split(" ")[0]}</span><span>{settings.politeness}</span><span>{activeMode}</span><b>{formattedDuration}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Generating feedback…" : "End session"}</button></div></header>
+    <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.name}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{settings.level.split(" ")[0]}</span><span>{settings.politeness}</span><span>{activeMode}</span><b>{formattedDuration}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Reviewing…" : "End session"}</button></div></header>
     {isVoiceMode && <div className="mobile-bottom-dock" role="region" aria-label="Live Voice Mode controls">
       {composer}
       <div className="mobile-live-session-bar">
         <div><b>{formattedDuration}</b><span> · {ending ? "Ending session" : roomStatus}</span></div>
-        <button type="button" onClick={endSession} disabled={ending}>{ending ? "Ending…" : "End session"}</button>
+        <button type="button" onClick={endSession} disabled={ending}>{ending ? "Reviewing…" : "End session"}</button>
       </div>
     </div>}
     <div className="room-layout">
@@ -226,7 +226,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
         <div className="session-tip"><Lightbulb/><div><b>Session tip</b><span>Mistakes are welcome. Keep the conversation moving.</span></div></div>
       </aside>
       <section className="conversation-main" ref={scrollAreaRef} onScroll={updateNearBottom}>
-        {ending && <div className="feedback-loading" role="status"><AudioLines/><div><b>Generating your feedback…</b><span>Reviewing your goals and conversation.</span></div></div>}
+        {ending && <div className="feedback-loading" role="status"><AudioLines/><div><b>Reviewing your conversation…</b><span>Checking your goals and finalized transcript.</span></div></div>}
         {isDemoMode && <div className="demo-banner"><Play/> <b>Demo Mode</b> — sample conversation only <span>Step {count} of {scenarioTranscript.length}</span></div>}
         {isVoiceMode && voice.error && <div className="demo-banner"><AudioLines/> <b>{voice.error}</b> <button type="button" onClick={() => voice.startVoiceSession(sessionPayload)}>Try again</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Demo Mode"); }}>Continue with Demo Mode</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Text Mode"); }}>Continue with Text Mode</button></div>}
         <div className="voice-stage"><span className="speaking-label">● {roomStatus.toUpperCase()}</span><div className="room-orb"><i/><i/><span><AudioLines/></span></div><p>{lastAi?.jp || (isVoiceMode ? "Voice Mode is getting ready…" : scenario.opening)}</p>{romaji && <i>{lastAi?.romaji}</i>}</div>

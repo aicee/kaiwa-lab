@@ -35,6 +35,7 @@ export default function Home() {
   const [unlocking, setUnlocking] = useState(false);
   const [showDemoCodeModal, setShowDemoCodeModal] = useState(false);
   const checkingVoiceAccessRef = useRef(false);
+  const feedbackRequestKeysRef = useRef(new Set());
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -165,14 +166,30 @@ export default function Home() {
             settings={settings}
             onEnd={async (sessionData) => {
               setSessionResult(sessionData);
+              if (sessionData?.practiceMode !== "Voice Mode") {
+                setFeedback(mockFeedback);
+                setView("feedback");
+                return;
+              }
+
+              const completedSessionKey = sessionData.conversationId || `${sessionData.scenario?.id || "scenario"}:${sessionData.endedAt || "ended"}:${sessionData.transcript?.length || 0}`;
+              if (feedbackRequestKeysRef.current.has(completedSessionKey)) {
+                setView("feedback");
+                return;
+              }
+
+              feedbackRequestKeysRef.current.add(completedSessionKey);
               try {
                 setFeedback(await generateSessionFeedback(sessionData));
               } catch (error) {
-                console.warn("Feedback request failed; using demo feedback.", error);
-                setFeedback(mockFeedback);
-              } finally {
-                setView("feedback");
+                console.warn("Feedback request failed; using sample feedback.", error);
+                setFeedback({
+                  ...mockFeedback,
+                  source: "sample",
+                  message: "We couldn't generate live feedback, so here's a sample report."
+                });
               }
+              setView("feedback");
             }}
             onVoiceAccessExpired={() => {
               clearStoredDemoAccessHint();
@@ -196,7 +213,7 @@ export default function Home() {
               setSettings((s) => ({ ...s, level: s.level === "N5 Beginner" ? "N3 Intermediate" : "N1 Advanced" }));
               setView("setup");
             }}
-            onNext={() => chooseScenario(scenarios.find((s) => s.id === scenario.next) || scenarios[1])}
+            onNext={(scenarioId) => chooseScenario(scenarios.find((s) => s.id === scenarioId) || scenarios.find((s) => s.id === scenario.next) || scenarios[1])}
           />
         )}
       </main>
