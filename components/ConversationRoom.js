@@ -18,6 +18,10 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   const isVoiceMode = activeMode === "Voice Mode";
   const voice = useKaiwaVoiceConversation();
   const voiceStartedRef = useRef(false);
+  const endingRef = useRef(false);
+  const scrollAreaRef = useRef(null);
+  const transcriptEndRef = useRef(null);
+  const userNearBottomRef = useRef(true);
   const scenarioTranscript = useMemo(() => [
     {
       speaker: "ai",
@@ -35,6 +39,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   const [help, setHelp] = useState(null);
   const [seconds, setSeconds] = useState(isVoiceMode ? 0 : 42);
   const [ending, setEnding] = useState(false);
+  const [showJumpLatest, setShowJumpLatest] = useState(false);
   const simpleHelpJapanese = useMemo(() => {
     const phrase = scenario.usefulPhrases[0] || scenario.opening;
     return phrase.replace(/どうぞ。?$/u, "").trim() || phrase;
@@ -81,6 +86,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   }, [isVoiceMode, onVoiceAccessExpired, voice.error]);
 
   const transcript = isVoiceMode ? voice.transcript : isTextMode ? textTranscript : scenarioTranscript.slice(0, count);
+  const finalizedMessageCount = isVoiceMode ? voice.finalTranscriptEvents.length : transcript.length;
   // Demo and Text Mode goal progress is intentionally mock-only. Real goal completion
   // will be generated after the session from the completed transcript via OpenAI feedback.
   const done = Math.min(3, Math.ceil(count / 2));
@@ -108,8 +114,34 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     event.preventDefault();
     sendTextMessage();
   };
+  const updateNearBottom = () => {
+    const element = scrollAreaRef.current;
+    if (!element) return;
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    const isNearBottom = distanceFromBottom < 140;
+    userNearBottomRef.current = isNearBottom;
+    if (isNearBottom) setShowJumpLatest(false);
+  };
+  const scrollToLatest = () => {
+    transcriptEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    userNearBottomRef.current = true;
+    setShowJumpLatest(false);
+  };
+  useEffect(() => {
+    if (!isVoiceMode) {
+      setShowJumpLatest(false);
+      return;
+    }
+    if (userNearBottomRef.current) {
+      window.requestAnimationFrame(() => transcriptEndRef.current?.scrollIntoView({ block: "end" }));
+      return;
+    }
+    setShowJumpLatest(true);
+  }, [finalizedMessageCount, isVoiceMode]);
+
   const endSession = async () => {
-    if (ending) return;
+    if (endingRef.current) return;
+    endingRef.current = true;
     setEnding(true);
     if (isVoiceMode) voice.endVoiceSession();
     await onEnd({
@@ -143,15 +175,20 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     }
     setHelp({type:"slower",label:"REPEAT SLOWER",jp:lastAi?.jp || scenario.opening,romaji:lastAi?.romaji || "",en:lastAi?.en || "The agent can repeat more slowly during Voice Mode."});
   };
-  return <div className="app-screen conversation-page">
-    <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.name}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{settings.level.split(" ")[0]}</span><span>{settings.politeness}</span><span>{activeMode}</span><b>{String(Math.floor(seconds/60)).padStart(2,"0")}:{String(seconds%60).padStart(2,"0")}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Generating feedback…" : "End session"}</button></div></header>
+  const formattedDuration = `${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
+  return <div className={`app-screen conversation-page ${isVoiceMode ? "voice-session-active" : ""}`}>
+    <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.name}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{settings.level.split(" ")[0]}</span><span>{settings.politeness}</span><span>{activeMode}</span><b>{formattedDuration}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Generating feedback…" : "End session"}</button></div></header>
+    {isVoiceMode && <div className="mobile-live-session-bar" role="region" aria-label="Live Voice Mode session controls">
+      <div><b>{formattedDuration}</b><span> · {ending ? "Ending session" : roomStatus}</span></div>
+      <button type="button" onClick={endSession} disabled={ending}>{ending ? "Ending…" : "End session"}</button>
+    </div>}
     <div className="room-layout">
       <aside className="goals-panel">
         <small>SESSION PROGRESS</small><div className="goal-total"><b>{done}</b><span>of {scenario.goals.length}<br/>goals complete</span></div><div className="progress"><i style={{width: `${done/scenario.goals.length*100}%`}}/></div>
         <div className="goal-checks">{scenario.goals.map((g,i)=><div className={i<done?"complete":""} key={g}><span>{i<done?<Check/>:i===done?<ChevronRight/>:""}</span><p>{g}<small>{i<done?"Completed":i===done?"Current goal":"Not yet"}</small></p></div>)}</div>
         <div className="session-tip"><Lightbulb/><div><b>Session tip</b><span>Mistakes are welcome. Keep the conversation moving.</span></div></div>
       </aside>
-      <section className="conversation-main">
+      <section className="conversation-main" ref={scrollAreaRef} onScroll={updateNearBottom}>
         {ending && <div className="feedback-loading" role="status"><AudioLines/><div><b>Generating your feedback…</b><span>Reviewing your goals and conversation.</span></div></div>}
         {isDemoMode && <div className="demo-banner"><Play/> <b>Demo Mode</b> — sample conversation only <span>Step {count} of {scenarioTranscript.length}</span></div>}
         {isVoiceMode && voice.error && <div className="demo-banner"><AudioLines/> <b>{voice.error}</b> <button type="button" onClick={() => voice.startVoiceSession(sessionPayload)}>Try again</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Demo Mode"); }}>Continue with Demo Mode</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Text Mode"); }}>Continue with Text Mode</button></div>}
@@ -159,6 +196,8 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
         <div className="transcript-title"><b>Conversation</b><span>LIVE TRANSCRIPT</span></div>
         <div className="transcript">{transcript.map((m,i)=><TranscriptBubble key={i} message={m} romaji={romaji} translation={translation}/>)}</div>
         {help && <div className={`help-card ${help.type}`}><button onClick={()=>setHelp(null)}>×</button><small>{help.label}</small><b>{help.jp}</b>{romaji && <i>{help.romaji}</i>}<span>{help.en}</span></div>}
+        <div ref={transcriptEndRef} aria-hidden="true" />
+        {isVoiceMode && showJumpLatest && <button type="button" className="jump-latest" onClick={scrollToLatest}>Jump to latest</button>}
         {isDemoMode && count < scenarioTranscript.length && <button className="btn btn-red demo-next" onClick={next}>Play next message <Play/> </button>}
         <div className="composer"><button className="mic-button" type="button" onClick={isVoiceMode && voice.isConnected ? voice.isListening ? voice.muteMicrophone : voice.unmuteMicrophone : undefined}>{isVoiceMode && voice.status === "Muted" ? <Pause/> : <Mic/>}</button><textarea rows="1" placeholder={isDemoMode ? "Demo responses are pre-filled…" : isVoiceMode ? "Voice Mode uses your microphone…" : "Type your response in Japanese…"} disabled={isDemoMode || isVoiceMode} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown}/><button type="button" onClick={sendTextMessage} disabled={!isTextMode || !draft.trim()} aria-label="Send message"><Send/></button></div>
       </section>
