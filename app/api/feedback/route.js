@@ -23,7 +23,7 @@ const VALID_LEVELS = new Set(["N5 Beginner", "N3 Intermediate", "N1 Advanced"]);
 const VALID_POLITENESS_MODES = new Set(["Casual", "Polite", "Business"]);
 const VALID_ROLES = new Set(["agent", "user"]);
 const MIN_USER_TURNS_FOR_FEEDBACK = 1;
-const OPENAI_TIMEOUT_MS = 25000;
+const OPENAI_TIMEOUT_MS = 90_000;
 
 function debugFeedback(message, details = {}) {
   if (process.env.NODE_ENV !== "development") return;
@@ -48,6 +48,142 @@ function logFeedbackEligibility(details) {
     stage: "FEEDBACK_ELIGIBILITY",
     ...details
   });
+}
+
+function getOpenAIErrorDetails(error) {
+  return {
+    errorName: error?.name,
+    errorConstructor: error?.constructor?.name,
+    status: error?.status,
+    code: error?.code,
+    type: error?.type
+  };
+}
+
+function isOpenAITimeoutError(error) {
+  const details = getOpenAIErrorDetails(error);
+  const cause = error?.cause;
+  const causeName = cause?.name;
+  const causeConstructor = cause?.constructor?.name;
+  const causeCode = cause?.code;
+  const values = [
+    details.errorName,
+    details.errorConstructor,
+    details.code,
+    details.type,
+    causeName,
+    causeConstructor,
+    causeCode
+  ].filter(Boolean).map((value) => String(value).toLowerCase());
+
+  return values.some((value) =>
+    value === "apiconnectiontimeouterror" ||
+    value === "apiuseraborterror" ||
+    value === "timeouterror" ||
+    value === "aborterror" ||
+    value === "aborted" ||
+    value === "request_aborted" ||
+    value === "und_err_connect_timeout" ||
+    value.includes("timeout") ||
+    value.includes("timedout")
+  );
+}
+
+function isStructuredOutputParseError(error) {
+  const details = getOpenAIErrorDetails(error);
+  return details.errorConstructor === "SyntaxError" || details.errorName === "SyntaxError";
+}
+
+function classifyOpenAIRequestError(error) {
+  const details = getOpenAIErrorDetails(error);
+  const errorText = [
+    details.errorName,
+    details.errorConstructor,
+    details.code,
+    details.type
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  if (isOpenAITimeoutError(error)) return "openai_timeout";
+  if (details.status === 401) return "openai_auth_failed";
+  if (details.status === 429) return "openai_rate_limit";
+  if (
+    details.status === 404 ||
+    details.status === 403 ||
+    errorText.includes("model") ||
+    errorText.includes("unsupported")
+  ) {
+    return "openai_model_error";
+  }
+  if (isStructuredOutputParseError(error)) {
+    return "structured_output_failed";
+  }
+  return "openai_request_failed";
+}
+
+function logOpenAIRequestFailure(error, durationMs) {
+  const details = getOpenAIErrorDetails(error);
+  const logDetails = {
+    stage: "OPENAI_REQUEST_FAILED",
+    ...details,
+    timeoutDetected: isOpenAITimeoutError(error),
+    durationMs
+  };
+
+  if (process.env.NODE_ENV === "development") {
+    logDetails.errorMessage = error?.message;
+  }
+
+  console.warn("Kaiwa feedback", logDetails);
+}
+
+function logOpenAIParseFailure(error, durationMs) {
+  const details = getOpenAIErrorDetails(error);
+  const logDetails = {
+    stage: "OPENAI_RESPONSE_PARSE_FAILED",
+    ...details,
+    durationMs
+  };
+
+  if (process.env.NODE_ENV === "development") {
+    logDetails.errorMessage = error?.message;
+  }
+
+  console.warn("Kaiwa feedback", logDetails);
+}
+
+function findRefusal(response) {
+  for (const item of response?.output || []) {
+    for (const content of item?.content || []) {
+      if (content?.type === "refusal" || content?.type === "output_refusal" || content?.refusal) {
+        return content;
+      }
+    }
+  }
+  return null;
+}
+
+function getParsedFeedbackResponseStatus(response) {
+  if (!response || typeof response !== "object") {
+    return { success: false, code: "structured_output_failed", parsed: null };
+  }
+
+  if (response.status === "incomplete") {
+    return { success: false, code: "openai_incomplete_output", parsed: null };
+  }
+
+  if (response.status && response.status !== "completed") {
+    return { success: false, code: "structured_output_failed", parsed: null };
+  }
+
+  if (findRefusal(response)) {
+    return { success: false, code: "openai_refusal", parsed: null };
+  }
+
+  if (!response.output_parsed) {
+    return { success: false, code: "structured_output_failed", parsed: null };
+  }
+
+  return { success: true, code: null, parsed: response.output_parsed };
 }
 
 function getScenarioId(sessionData) {
@@ -146,7 +282,7 @@ async function createOpenAIFeedback({ scenario, sessionData, transcript }) {
     { signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS) }
   );
 
-  return response.output_parsed;
+  return response;
 }
 
 export async function POST(request) {
@@ -324,7 +460,9 @@ export async function POST(request) {
   });
 
   // TODO: Move feedback request IDs and usage limits to durable storage before full monetization.
+  let openAIRequestStartedAt = 0;
   try {
+    openAIRequestStartedAt = Date.now();
     debugFeedback("OPENAI_REQUEST_STARTED", {
       stage: "OPENAI_REQUEST_STARTED",
       sessionKey,
@@ -332,8 +470,27 @@ export async function POST(request) {
       transcriptTurnCount: transcript.length
     });
 
-    const rawFeedback = await createOpenAIFeedback({ scenario, sessionData, transcript });
-    const validation = validateFeedbackReport(rawFeedback, { currentScenarioId: scenario.id });
+    const openAIResponse = await createOpenAIFeedback({ scenario, sessionData, transcript });
+    const durationMs = Date.now() - openAIRequestStartedAt;
+    const parsedStatus = getParsedFeedbackResponseStatus(openAIResponse);
+
+    debugFeedback("OPENAI_REQUEST_COMPLETED", {
+      stage: "OPENAI_REQUEST_COMPLETED",
+      durationMs,
+      responseStatus: openAIResponse?.status,
+      parsedOutputPresent: Boolean(parsedStatus.parsed)
+    });
+
+    if (!parsedStatus.success) {
+      return fallbackResponse({
+        scenarioId: scenario.id,
+        message: "We couldn't generate live feedback, so here's a sample report.",
+        code: parsedStatus.code,
+        details: { sessionKey }
+      });
+    }
+
+    const validation = validateFeedbackReport(parsedStatus.parsed, { currentScenarioId: scenario.id });
 
     debugFeedback("schema validation complete", {
       sessionKey,
@@ -356,18 +513,18 @@ export async function POST(request) {
       message: "Live feedback generated."
     });
   } catch (error) {
-    const isTimeout = error?.name === "TimeoutError" || error?.name === "AbortError";
-    debugFeedback("OpenAI request failed", {
-      sessionKey,
-      scenarioId: scenario.id,
-      errorName: error?.name,
-      errorMessage: error?.message
-    });
+    const durationMs = openAIRequestStartedAt ? Date.now() - openAIRequestStartedAt : undefined;
+    const code = classifyOpenAIRequestError(error);
+    if (isStructuredOutputParseError(error)) {
+      logOpenAIParseFailure(error, durationMs);
+    } else {
+      logOpenAIRequestFailure(error, durationMs);
+    }
 
     return fallbackResponse({
       scenarioId: scenario.id,
       message: "We couldn't generate live feedback, so here's a sample report.",
-      code: isTimeout ? "openai_timeout" : "openai_request_failed",
+      code,
       details: { sessionKey }
     });
   }
