@@ -11,7 +11,7 @@ export default function Navbar({ view, onHome, onNavigate, onPractice }) {
         <button className="brand" onClick={onHome}><span className="brand-mark">話</span><span>Kaiwa <b>Lab</b></span></button>
         <div className={`nav-links ${open ? "open" : ""}`}>
           {view === "home" && links.map(([label, target]) => <button key={label} onClick={() => { onNavigate(target); setOpen(false); }}>{label}</button>)}
-          <button className="btn btn-dark nav-cta" onClick={onPractice}>Start practice <span>→</span></button>
+          <button className="btn btn-dark nav-cta" onClick={onPractice}>Start conversation <span>→</span></button>
         </div>
         <button className="menu" onClick={() => setOpen(!open)} aria-label="Menu">{open ? <X /> : <Menu />}</button>
       </nav>

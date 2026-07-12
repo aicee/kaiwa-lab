@@ -24,11 +24,11 @@ export default function ScenarioGrid({ onSelect }) {
                 const index = scenarios.findIndex((scenario) => scenario.id === s.id);
                 const Icon = Icons[s.icon] || Icons.MessageCircle;
                 return <article className="scenario-card" key={s.id}>
-                  <div className="scenario-head"><span className={`scenario-icon tone-${index % 4}`}><Icon /></span><div className="level-chips">{s.levels.map(x => <span key={x}>{x}</span>)}</div></div>
+                  <div className="scenario-head"><span className={`scenario-icon tone-${index % 4}`}><Icon /></span><div className="level-chips"><span>Beginner</span></div></div>
                   <div><small className="jp-title">{s.jp}</small><h3>{s.name}</h3><p>{s.description}</p></div>
-                  <div className="scenario-role"><span>AI ROLE</span><b>{s.role}</b><i>·</i><span>{s.estimatedTime}</span></div>
+                  <div className="scenario-role"><span>YOU'LL TALK TO</span><b>{s.role}</b><i>·</i><span>{s.estimatedTime}</span></div>
                   <div className="phrase-preview"><span>TRY SAYING</span><b>{s.usefulPhrases[1] || s.usefulPhrases[0]}</b></div>
-                  <button onClick={() => onSelect(s)}>Start scenario <span>→</span></button>
+                  <button onClick={() => onSelect(s)}>Start conversation <span>→</span></button>
                 </article>;
               })}
             </div>

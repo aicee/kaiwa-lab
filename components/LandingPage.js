@@ -1,11 +1,17 @@
-import { ArrowRight, AudioLines, BrainCircuit, Check, MessageSquareText, Mic2, Sparkles } from "lucide-react";
+import { ArrowRight, AudioLines, Check, CircleHelp, MessageSquareText, Mic2, Sparkles } from "lucide-react";
 import ScenarioGrid from "./ScenarioGrid";
 import ScreenshotMockups from "./ScreenshotMockups";
 
 const features = [
-  [Mic2, "Speak naturally", "Practice aloud with a voice-first tutor, or type when you prefer."],
-  [BrainCircuit, "Learns your level", "From supported N5 exchanges to nuanced N1 conversation."],
-  [MessageSquareText, "Feedback that sticks", "Get focused corrections, vocabulary, and a clear next step."]
+  [Mic2, "Speak out loud", "Practice answering with your voice instead of only reading or memorizing."],
+  [CircleHelp, "Get unstuck", "Ask for a hint, a simpler explanation, or a slower repeat when the words disappear."],
+  [MessageSquareText, "Review what to practice", "Finish with focused feedback on what worked and what to try next."]
+];
+
+const repairPhrases = [
+  ["わかりません。", "Wakarimasen.", "I don't understand."],
+  ["もう一度お願いします。", "Mou ichido onegaishimasu.", "One more time, please."],
+  ["ゆっくりお願いします。", "Yukkuri onegaishimasu.", "Please speak slowly."]
 ];
 
 export default function LandingPage({ onSelect, onDemo }) {
@@ -15,12 +21,12 @@ export default function LandingPage({ onSelect, onDemo }) {
         <div className="hero-copy">
           <div className="eyebrow"><span /> Japanese conversation, made practical</div>
           <h1>Practice Japanese through <em>real conversations.</em></h1>
-          <p>Speak or type with an AI tutor in everyday situations — from ramen shops to job interviews. Build confidence first, then use it out there.</p>
+          <p>Speak with an AI tutor in everyday situations — from ramen shops to train stations. Practice listening, responding, and getting unstuck before using Japanese in real life.</p>
           <div className="hero-actions">
-            <button className="btn btn-red" onClick={() => document.querySelector("#scenarios").scrollIntoView({ behavior: "smooth" })}>Start a scenario <ArrowRight size={17} /></button>
+            <button className="btn btn-red" onClick={() => document.querySelector("#scenarios").scrollIntoView({ behavior: "smooth" })}>Start a conversation <ArrowRight size={17} /></button>
             <button className="btn btn-ghost" onClick={onDemo}><span className="play">▶</span> View demo flow</button>
           </div>
-          <div className="hero-meta"><span><Check /> 12 real-life scenarios</span><span><Check /> N5 to N1 levels</span><span><Check /> No sign-up needed</span></div>
+          <div className="hero-meta"><span><Check /> Voice-first practice</span><span><Check /> Built for beginners</span><span><Check /> Real-life scenarios</span></div>
         </div>
         <div className="hero-visual">
           <div className="japanese-stamp">会話<br/><small>practice</small></div>
@@ -39,34 +45,38 @@ export default function LandingPage({ onSelect, onDemo }) {
         </div>
       </section>
 
-      <section className="trust-strip"><div className="shell"><span>VOICE ROLEPLAY</span><i/><span>ADAPTIVE JLPT LEVELS</span><i/><span>REAL-WORLD SCENARIOS</span><i/><span>USEFUL FEEDBACK</span></div></section>
+      <section className="trust-strip"><div className="shell"><span>VOICE ROLEPLAY</span><i/><span>BEGINNER SUPPORT</span><i/><span>REAL-WORLD SCENARIOS</span><i/><span>USEFUL FEEDBACK</span></div></section>
 
       <section className="section shell" id="how">
         <div className="section-kicker">WHY KAIWA LAB</div>
-        <div className="section-heading"><h2>From “I understand it” to<br/><em>“I can say it.”</em></h2><p>Textbooks teach you the pieces. Kaiwa Lab helps you put them together in the moments that matter.</p></div>
+        <div className="section-heading"><h2>From “I understand it” to<br/><em>“I can say it.”</em></h2><p>Reading is different from replying in the moment. Kaiwa Lab gives beginners a place to practice speaking before real life asks for an answer.</p></div>
         <div className="feature-grid">{features.map(([Icon, title, body], i) => <article className="feature" key={title}><span className="feature-num">0{i + 1}</span><div className="feature-icon"><Icon /></div><h3>{title}</h3><p>{body}</p></article>)}</div>
       </section>
 
       <section className="section scenarios-section" id="scenarios">
         <div className="shell">
           <div className="section-kicker">CHOOSE YOUR MOMENT</div>
-          <div className="section-heading"><h2>Where do you want to<br/><em>feel more confident?</em></h2><p>12 real-life roleplay scenes across food, travel, daily life, and work.</p></div>
+          <div className="section-heading"><h2>Where do you want to<br/><em>feel more confident?</em></h2><p>Practice the situations where beginner Japanese suddenly has to become spoken Japanese.</p></div>
           <ScenarioGrid onSelect={onSelect} />
         </div>
       </section>
 
-      <section className="section levels shell">
-        <div className="level-intro"><div className="section-kicker">YOUR LEVEL, YOUR PACE</div><h2>Start with support.<br/><em>Speak with less help over time.</em></h2><p>Beginner mode gives you more hints and a slower pace. Higher levels use less help and more natural Japanese.</p></div>
-        <div className="level-list">
-          {[["N5", "Beginner", "Short sentences · English hints · Slower pace", "やさしく話しましょう。"], ["N3", "Intermediate", "Natural Japanese · Follow-up questions · Fewer hints", "もう少し詳しく教えてください。"], ["N1", "Advanced", "Nuance · Indirect phrasing · Business Japanese", "ご経験についてお聞かせいただけますか。"]].map((l, i) =>
-            <div className={`level-item l${i}`} key={l[0]}><span className="level-badge">{l[0]}</span><div><h3>{l[1]}</h3><p>{l[2]}</p></div><b>{l[3]}</b></div>
+      <section className="section repair-section shell">
+        <div className="repair-intro">
+          <div className="section-kicker">WHEN WORDS DISAPPEAR</div>
+          <h2>Freeze?<br/><em>That&apos;s part of practice.</em></h2>
+          <p>Kaiwa Lab helps you recover without ending the conversation.</p>
+        </div>
+        <div className="repair-list">
+          {repairPhrases.map(([jp, romaji, english], i) =>
+            <div className={`repair-item r${i}`} key={jp}><span>0{i + 1}</span><div><b>{jp}</b><i>{romaji}</i><p>{english}</p></div></div>
           )}
         </div>
       </section>
 
       <ScreenshotMockups onDemo={onDemo} />
 
-      <section className="final-cta shell"><span className="jp-bg">話</span><div className="section-kicker">READY WHEN YOU ARE</div><h2>Your next Japanese<br/>conversation starts <em>here.</em></h2><p>Choose a scenario. Try the words. Make mistakes safely.<br/>Then step into real life a little more ready.</p><button className="btn btn-red" onClick={() => document.querySelector("#scenarios").scrollIntoView({ behavior: "smooth" })}>Start practicing <ArrowRight size={17}/></button></section>
+      <section className="final-cta shell"><span className="jp-bg">話</span><div className="section-kicker">READY WHEN YOU ARE</div><h2>Your next Japanese<br/>conversation starts <em>here.</em></h2><p>Choose a scenario. Speak out loud. Make mistakes safely.<br/>Then step into real life a little more ready.</p><button className="btn btn-red" onClick={() => document.querySelector("#scenarios").scrollIntoView({ behavior: "smooth" })}>Start a conversation <ArrowRight size={17}/></button></section>
     </>
   );
 }

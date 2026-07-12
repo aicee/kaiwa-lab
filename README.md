@@ -1,15 +1,14 @@
 # Kaiwa Lab
 
-Kaiwa Lab is a responsive Japanese conversation practice app for building confidence through real-life roleplay. Learners choose a scenario, adjust the language level and support settings, practice by demo, typing, or protected live voice, and receive a focused post-session report.
+Kaiwa Lab is a voice-first Japanese practice experience for beginner learners who know some Japanese but freeze in real conversations. Learners choose a real-life scenario, choose how much help they want, speak with a protected live voice tutor, and receive a focused post-session report.
 
 ## Features
 
 - 12 roleplay scenarios across food, shopping, travel, daily life, and work
-- JLPT-oriented N5, N3, and N1 difficulty settings
-- Public no-microphone Demo Mode
-- Text practice with typing
-- Demo-code protected live Voice Mode
-- Politeness, romaji, and translation controls
+- Guided, Natural, and Challenge support settings for beginner practice
+- Public no-microphone demo flow
+- Demo-code protected live voice practice
+- Scenario-derived register plus romaji and translation controls
 - Goal checklist and in-session language help
 - Post-session corrections, vocabulary, natural phrases, and next-scenario guidance
 - Responsive setup, conversation, and feedback screens
@@ -35,7 +34,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Demo Mode works without environment variables, API keys, microphone access, or a demo code.
+Open [http://localhost:3000](http://localhost:3000). The demo flow works without environment variables, API keys, microphone access, or a demo code.
 
 Create a production build with:
 
@@ -60,13 +59,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ## Demo Access and API Protection
 
-Demo Mode is public and does not use paid APIs. It uses the local mock transcript and mock feedback, so portfolio visitors can try Kaiwa Lab safely.
+The demo flow is public and does not use paid APIs. It uses the local mock transcript and mock feedback, so portfolio visitors can preview Kaiwa Lab safely.
 
-Voice Mode requires a demo code. The code is stored in `DEMO_ACCESS_CODE` and checked only on the server through `/api/demo-code/validate`; the real code is never returned to the frontend.
+Live voice practice requires a demo code. The code is stored in `DEMO_ACCESS_CODE` and checked only on the server through `/api/demo-code/validate`; the real code is never returned to the frontend.
 
 OpenAI feedback uses the real API only for unlocked demo sessions. If there is no `OPENAI_API_KEY`, or if a visitor has not unlocked demo access, the app falls back to mock feedback while still showing a feedback report.
 
-The current server limits are intentionally simple in-memory demo protections: one live Voice Mode session per browser session, up to 10 live messages, and up to 5 minutes. If Kaiwa Lab is monetized later, replace the demo code with user accounts, Stripe, credits, and database-backed or Redis-backed rate limits.
+The current server limits are intentionally simple in-memory demo protections: one live voice session per browser session, up to 10 live messages, and up to 5 minutes. If Kaiwa Lab is monetized later, replace the demo code with user accounts, Stripe, credits, and database-backed or Redis-backed rate limits.
 
 The current API routes degrade safely:
 
@@ -94,9 +93,9 @@ vercel --prod
 
 ## AI architecture
 
-- Demo Mode uses local sample transcript and feedback data, so it works without API keys or microphone permission.
+- The demo flow uses local sample transcript and feedback data, so it works without API keys or microphone permission.
 - ElevenLabs will handle live Japanese voice roleplay through a server-created agent session.
-- OpenAI will handle structured post-session feedback using the scenario, level, politeness mode, goals, and transcript.
+- OpenAI will handle structured post-session feedback using the scenario, internal beginner level, support level, scenario-derived register, goals, and transcript.
 - Provider API keys stay server-side only and are never sent to the browser.
 - V1 uses Vercel App Router API routes for the backend boundary. Fly.io is not part of V1.
 

@@ -1,7 +1,8 @@
 "use client";
-import { ArrowRight, Check, CheckCircle2, Copy, Download, RotateCcw, Sparkles, Target, TrendingUp } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, ChevronDown, Copy, Download, RotateCcw, Sparkles, Target } from "lucide-react";
 import { mockFeedback } from "@/data/mockFeedback";
 import { scenarios } from "@/data/scenarios";
+import { getSupportLevelLabel } from "@/lib/practiceSettings";
 import { useMemo, useState } from "react";
 
 function formatDuration(seconds) {
@@ -106,7 +107,8 @@ function buildSummary({ scenario, settings, duration, feedback, nextScenario }) 
     "Kaiwa Lab Practice Summary",
     "",
     `Scenario: ${scenario.name}`,
-    `Level: ${settings.level}`,
+    `Practice support: ${settings.supportLevelLabel || getSupportLevelLabel(settings.supportLevel)}`,
+    `Internal level: ${settings.level}`,
     `Duration: ${duration}`,
     "",
     `Overall score: ${feedback.overallScore}/100`,
@@ -147,13 +149,13 @@ function buildSummary({ scenario, settings, duration, feedback, nextScenario }) 
 
 export default function FeedbackReport({ scenario, settings, feedback, sessionResult, onRestart, onHarder, onNext }) {
   const [copied, setCopied] = useState(false);
+  const [showLanguageNotes, setShowLanguageNotes] = useState(false);
   const f = useMemo(() => getDisplayFeedback(normalizeFeedback(feedback, scenario)), [feedback, scenario]);
   const duration = formatDuration(sessionResult?.duration || sessionResult?.durationSeconds);
+  const supportLabel = sessionResult?.supportLevelLabel || settings.supportLevelLabel || getSupportLevelLabel(settings.supportLevel);
   const nextScenario = scenarios.find((item) => item.id === f.suggestedNextScenario.scenarioId);
   const completedGoals = f.goalCompletion.filter((item) => item.status === "completed").length;
   const fallbackNotice = f.source === "sample" || f.source === "mock" ? f.message || "We couldn't generate live feedback, so here's a sample report." : "";
-  const correctionTitle = f.corrections.length ? "Useful corrections" : "One thing to keep practicing";
-
   const copy = () => {
     navigator.clipboard?.writeText(buildSummary({ scenario, settings, duration, feedback: f, nextScenario }));
     setCopied(true);
@@ -163,23 +165,25 @@ export default function FeedbackReport({ scenario, settings, feedback, sessionRe
   return <div className="app-screen feedback-page"><div className="report-shell">
     <div className="report-top"><span className="success-mark"><Check/></span><div><small>SESSION COMPLETE</small><h1>よくできました！</h1><p>Nice work. Here’s what to carry into your next conversation.</p></div><div className="report-actions"><button onClick={copy}>{copied?<Check/>:<Copy/>} {copied?"Copied":"Copy summary"}</button><button onClick={()=>window.print()}><Download/> Download report</button></div></div>
     {fallbackNotice && <div className="feedback-notice">{fallbackNotice}</div>}
-    <div className="session-summary"><div><small>SCENARIO</small><b>{scenario.name}</b></div><div><small>LEVEL</small><b>{settings.level}</b></div><div><small>MODE</small><b>{settings.mode}</b></div><div><small>DURATION</small><b>{duration}</b></div></div>
+    <div className="session-summary"><div><small>SCENARIO</small><b>{scenario.name}</b></div><div><small>PRACTICE SUPPORT</small><b>{supportLabel}</b></div><div><small>REGISTER</small><b>{scenario.registerLabel || scenario.politenessMode}</b></div><div><small>DURATION</small><b>{duration}</b></div></div>
     <div className="feedback-grid">
       <aside>
-        <div className="score-card"><small>OVERALL PERFORMANCE</small><div className="big-score"><b>{f.overallScore}</b><span>/ 100</span></div><div className="score-bar"><i style={{width:`${f.overallScore}%`}}/></div><h3>{f.performanceLabel}</h3><p>{f.performanceSummary}</p><p className="score-disclaimer">This score reflects this practice conversation, not an official JLPT assessment.</p><span className="level-pill"><TrendingUp/> On track for {settings.level.split(" ")[0]}</span></div>
+        <div className="score-card"><small>OVERALL PERFORMANCE</small><div className="big-score"><b>{f.overallScore}</b><span>/ 100</span></div><div className="score-bar"><i style={{width:`${f.overallScore}%`}}/></div><h3>{f.performanceLabel}</h3><p>{f.performanceSummary}</p><p className="score-disclaimer">This score reflects this practice conversation, not an official test.</p><span className="level-pill"><Target/> {supportLabel} support</span></div>
         <div className="goals-report"><small>GOAL COMPLETION</small><h3>{completedGoals} of {f.goalCompletion.length || scenario.goals.length} complete</h3>{(f.goalCompletion.length ? f.goalCompletion : scenario.goals.map((goal) => ({ goal, status: "not_completed", evidence: "Sample report content." }))).map((item)=><div key={item.goal} className={item.status==="completed"?"done":""}><span>{item.status==="completed"?<Check/>:item.status==="partial"?"◐":"○"}</span>{item.goal}<small>{goalLabel(item.status)}</small></div>)}</div>
       </aside>
       <main className="report-content">
         <section><div className="report-section-title"><span><Sparkles/></span><div><small>01</small><h2>What you did well</h2></div></div><ul className="win-list">{f.strengths.map((x)=><li key={`${x.title}:${x.evidence}`}><CheckCircle2/><span><b>{x.title}</b>{x.explanation}<small>{x.evidence}</small></span></li>)}</ul></section>
-        <section><div className="report-section-title red"><span>直</span><div><small>02</small><h2>{correctionTitle}</h2></div></div>{f.corrections.length ? f.corrections.map(c=><div className="correction-card" key={`${c.userSaid}:${c.betterJapanese}`}><div><small>YOU SAID</small><del>{c.userSaid}</del></div><ArrowRight/><div><small>MORE NATURAL</small><b>{c.betterJapanese}</b>{c.romaji && <i>{c.romaji}</i>}</div><p><strong>Why:</strong> {c.explanation}</p></div>) : <div className="practice-focus"><h3>{f.keyFocus.title}</h3><p>{f.keyFocus.explanation}</p><b>{f.keyFocus.practiceExample}</b></div>}</section>
-        {f.misunderstoodLanguage.length > 0 && <section><div className="report-section-title green"><span>聞</span><div><small>03</small><h2>Words or phrases to review</h2></div></div><div className="vocab-grid">{f.misunderstoodLanguage.map((item)=><div key={`${item.japanese}:${item.learnerContext}`}><b>{item.japanese}</b><i>{item.romaji || item.reading}</i><span>{item.english}</span><small>{item.explanation}</small></div>)}</div></section>}
-        <section><div className="report-section-title"><span>言</span><div><small>{f.misunderstoodLanguage.length ? "04" : "03"}</small><h2>Natural phrases for next time</h2></div></div><div className="natural-list">{f.naturalPhrases.map((x,i)=><div key={`${x.japanese}:${x.reason}`}><span>0{i+1}</span><div><b>{x.japanese}</b><i>{x.romaji}</i><small><strong>{x.english}</strong> · {x.reason}</small></div></div>)}</div></section>
-        <section><div className="report-section-title green"><span>語</span><div><small>{f.misunderstoodLanguage.length ? "05" : "04"}</small><h2>New vocabulary</h2></div></div><div className="vocab-grid">{f.vocabulary.map((item)=><div key={`${item.japanese}:${item.english}`}><b>{item.japanese}</b><i>{item.romaji || item.reading}</i><span>{item.english}</span><small>{item.context}</small></div>)}</div></section>
-        <div className="notes-grid"><section><small>GRAMMAR NOTE</small><h3>{f.grammarNote.title}</h3><p>{f.grammarNote.explanation}</p></section><section><small>POLITENESS NOTE</small><h3>{f.politenessNote.title}</h3><p>{f.politenessNote.explanation}</p></section></div>
-        <section><div className="report-section-title"><span>焦</span><div><small>FOCUS</small><h2>One thing to focus on next</h2></div></div><div className="practice-focus"><h3>{f.keyFocus.title}</h3><p>{f.keyFocus.explanation}</p><b>{f.keyFocus.practiceExample}</b></div></section>
+        {f.corrections.length > 0 && <section><div className="report-section-title red"><span>直</span><div><small>02</small><h2>Useful corrections</h2></div></div>{f.corrections.map(c=><div className="correction-card" key={`${c.userSaid}:${c.betterJapanese}`}><div><small>YOU SAID</small><del>{c.userSaid}</del></div><ArrowRight/><div><small>MORE NATURAL</small><b>{c.betterJapanese}</b>{c.romaji && <i>{c.romaji}</i>}</div><p><strong>Why:</strong> {c.explanation}</p></div>)}</section>}
+        <section><div className="report-section-title"><span>焦</span><div><small>{f.corrections.length ? "03" : "02"}</small><h2>What to practice next</h2></div></div><div className="practice-focus"><h3>One thing to focus on next</h3><p>{f.keyFocus.explanation}</p><b>{f.keyFocus.practiceExample}</b></div><div className="practice-phrase-list"><small>USEFUL PHRASES FOR NEXT TIME</small><div className="natural-list">{f.naturalPhrases.map((x,i)=><div key={`${x.japanese}:${x.reason}`}><span>0{i+1}</span><div><b>{x.japanese}</b><i>{x.romaji}</i><small><strong>{x.english}</strong> · {x.reason}</small></div></div>)}</div></div></section>
+        <button className="language-notes-toggle" type="button" onClick={() => setShowLanguageNotes((value) => !value)}>View full language notes <ChevronDown/></button>
+        {showLanguageNotes && <div className="language-notes">
+          {f.misunderstoodLanguage.length > 0 && <section><div className="report-section-title green"><span>聞</span><div><small>NOTES</small><h2>Words or phrases to review</h2></div></div><div className="vocab-grid">{f.misunderstoodLanguage.map((item)=><div key={`${item.japanese}:${item.learnerContext}`}><b>{item.japanese}</b><i>{item.romaji || item.reading}</i><span>{item.english}</span><small>{item.explanation}</small></div>)}</div></section>}
+          <section><div className="report-section-title green"><span>語</span><div><small>NOTES</small><h2>New vocabulary</h2></div></div><div className="vocab-grid">{f.vocabulary.map((item)=><div key={`${item.japanese}:${item.english}`}><b>{item.japanese}</b><i>{item.romaji || item.reading}</i><span>{item.english}</span><small>{item.context}</small></div>)}</div></section>
+          <div className="notes-grid"><section><small>GRAMMAR NOTE</small><h3>{f.grammarNote.title}</h3><p>{f.grammarNote.explanation}</p></section><section><small>POLITENESS NOTE</small><h3>{f.politenessNote.title}</h3><p>{f.politenessNote.explanation}</p></section></div>
+        </div>}
         <section className="next-card"><div><small>SUGGESTED NEXT SCENARIO</small><h2>{nextScenario?.name || "Next practice"} <span>{nextScenario?.jp || ""}</span></h2><p>{f.suggestedNextScenario.reason}</p></div><button onClick={() => onNext?.(f.suggestedNextScenario.scenarioId)}>Set up scenario <ArrowRight/></button></section>
       </main>
     </div>
-    <div className="bottom-actions"><button className="btn btn-ghost" onClick={onRestart}><RotateCcw/> Restart scenario</button><button className="btn btn-dark" onClick={onHarder}><Target/> Try a harder level</button></div>
+    <div className="bottom-actions"><button className="btn btn-ghost" onClick={onRestart}><RotateCcw/> Restart scenario</button><button className="btn btn-dark" onClick={onHarder}><Target/> Try with less help</button></div>
   </div></div>;
 }

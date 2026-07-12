@@ -13,8 +13,8 @@ import {
   upsertTranscriptTurn
 } from "@/lib/transcript";
 
-const safeErrorMessage = "Voice Mode could not connect. Please try again or continue with another mode.";
-export const demoAccessExpiredMessage = "Voice Mode needs a fresh demo code.";
+const safeErrorMessage = "Voice practice could not connect. Please try again or view the demo flow.";
+export const demoAccessExpiredMessage = "Voice practice needs a fresh demo code.";
 let voiceSessionStartInFlight = false;
 
 export function useKaiwaVoiceConversation() {
@@ -169,7 +169,7 @@ export function useKaiwaVoiceConversation() {
       startingRef.current = false;
       voiceSessionStartInFlight = false;
       setError(startError?.name === "NotAllowedError"
-        ? "Microphone access is needed for Voice Mode."
+        ? "Microphone access is needed for voice practice."
         : startError?.code === "INVALID_DEMO_ACCESS" || startError?.message === "Voice Mode requires demo access."
           ? demoAccessExpiredMessage
           : safeErrorMessage);

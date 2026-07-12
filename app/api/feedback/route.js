@@ -262,6 +262,7 @@ async function createOpenAIFeedback({ scenario, sessionData, transcript }) {
           content: buildFeedbackUserPrompt({
             scenario,
             level: sessionData.level,
+            supportLevel: sessionData.supportLevelLabel || sessionData.supportLevel,
             politenessMode: sessionData.politenessMode,
             practiceMode: sessionData.practiceMode,
             duration: Number(sessionData.duration || sessionData.durationSeconds || 0),
@@ -319,7 +320,7 @@ export async function POST(request) {
     });
     return fallbackResponse({
       scenarioId,
-      message: "Sample feedback is shown for Demo Mode and Text Mode.",
+      message: "Sample feedback is shown for the demo flow.",
       code: "ineligible_practice_mode",
       details: { sessionKey }
     });

@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ConversationProvider } from "@elevenlabs/react";
-import { AudioLines, Check, ChevronRight, CircleHelp, Languages, Lightbulb, Mic, Pause, Play, RotateCcw, Send, Square } from "lucide-react";
+import { AudioLines, Check, ChevronRight, CircleHelp, Languages, Lightbulb, Mic, Pause, Play, RotateCcw, Square } from "lucide-react";
 import { mockTranscript } from "@/data/mockTranscript";
 import { demoAccessExpiredMessage, useKaiwaVoiceConversation } from "@/hooks/useKaiwaVoiceConversation";
 import { buildElevenLabsDynamicVariables } from "@/lib/scenarioPrompts";
+import { getSupportLevelLabel } from "@/lib/practiceSettings";
 import TranscriptBubble from "./TranscriptBubble";
 
 export default function ConversationRoom({ scenario, settings, onEnd, onVoiceAccessExpired }) {
@@ -14,7 +15,6 @@ export default function ConversationRoom({ scenario, settings, onEnd, onVoiceAcc
 function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpired }) {
   const [activeMode, setActiveMode] = useState(settings.mode);
   const isDemoMode = activeMode === "Demo Mode";
-  const isTextMode = activeMode === "Text Mode";
   const isVoiceMode = activeMode === "Voice Mode";
   const voice = useKaiwaVoiceConversation();
   const voiceStartedRef = useRef(false);
@@ -31,9 +31,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     },
     ...mockTranscript.slice(1)
   ], [scenario.opening]);
-  const [count, setCount] = useState(isDemoMode || isTextMode ? 1 : scenarioTranscript.length);
-  const [textTranscript, setTextTranscript] = useState(() => scenarioTranscript.slice(0, 1));
-  const [draft, setDraft] = useState("");
+  const [count, setCount] = useState(isDemoMode ? 1 : scenarioTranscript.length);
   const [romaji, setRomaji] = useState(settings.romaji);
   const [translation, setTranslation] = useState(settings.translation);
   const [help, setHelp] = useState(null);
@@ -47,11 +45,12 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   const sessionPayload = useMemo(() => buildElevenLabsDynamicVariables({
     scenario,
     level: settings.level,
-    politenessMode: settings.politeness,
+    politenessMode: scenario.politenessMode || settings.politeness,
+    supportLevel: settings.supportLevelLabel || getSupportLevelLabel(settings.supportLevel),
     showRomaji: settings.romaji,
     showTranslation: settings.translation,
     practiceMode: "Voice Mode"
-  }), [scenario, settings.level, settings.politeness, settings.romaji, settings.translation]);
+  }), [scenario, settings.level, settings.politeness, settings.romaji, settings.translation, settings.supportLevel, settings.supportLevelLabel]);
 
   useEffect(() => {
     if (!isVoiceMode || voiceStartedRef.current) return;
@@ -62,7 +61,6 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   useEffect(() => {
     if (isVoiceMode) return;
     setCount(1);
-    setTextTranscript(scenarioTranscript.slice(0, 1));
     setSeconds(42);
     voiceStartedRef.current = false;
   }, [isVoiceMode, scenarioTranscript]);
@@ -90,35 +88,14 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     onVoiceAccessExpired?.();
   }, [isVoiceMode, onVoiceAccessExpired, voice.error]);
 
-  const transcript = isVoiceMode ? voice.transcript : isTextMode ? textTranscript : scenarioTranscript.slice(0, count);
+  const transcript = isVoiceMode ? voice.transcript : scenarioTranscript.slice(0, count);
   const finalizedMessageCount = isVoiceMode ? voice.finalTranscriptEvents.length : transcript.length;
-  // Demo and Text Mode goal progress is intentionally mock-only. Real goal completion
+  // Demo flow goal progress is intentionally mock-only. Real goal completion
   // will be generated after the session from the completed transcript via OpenAI feedback.
   const done = Math.min(3, Math.ceil(count / 2));
   const next = () => { setCount(c => Math.min(scenarioTranscript.length, c + 1)); setHelp(null); };
   const lastAi = [...transcript].reverse().find(m => m.speaker === "ai");
   const roomStatus = isVoiceMode ? voice.status : "Ready";
-  const sendTextMessage = () => {
-    const message = draft.trim();
-    if (!isTextMode || !message) return;
-
-    // Text Mode accepts any learner message. This mock reply sequence is temporary
-    // until Text Mode is connected to a secure AI route.
-    const nextAi = scenarioTranscript[count + 1];
-    setTextTranscript((current) => [
-      ...current,
-      { speaker: "user", jp: message, romaji: "", en: "" },
-      ...(nextAi?.speaker === "ai" ? [nextAi] : [])
-    ]);
-    setCount((current) => Math.min(scenarioTranscript.length, current + (nextAi?.speaker === "ai" ? 2 : 1)));
-    setDraft("");
-    setHelp(null);
-  };
-  const handleComposerKeyDown = (event) => {
-    if (event.key !== "Enter" || event.shiftKey) return;
-    event.preventDefault();
-    sendTextMessage();
-  };
   const updateNearBottom = () => {
     const element = scrollAreaRef.current;
     if (!element) return;
@@ -150,6 +127,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     setEnding(true);
     const endedAt = new Date().toISOString();
     const finalizedVoiceTranscript = isVoiceMode ? voice.getFinalTranscript() : null;
+    const supportLabel = settings.supportLevelLabel || getSupportLevelLabel(settings.supportLevel);
     const sessionResult = {
       scenario: {
         id: scenario.id,
@@ -160,8 +138,11 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
         usefulPhrases: scenario.usefulPhrases
       },
       level: settings.level,
-      politenessMode: settings.politeness,
-      politeness: settings.politeness,
+      supportLevel: supportLabel,
+      supportLevelValue: settings.supportLevel,
+      supportLevelLabel: supportLabel,
+      politenessMode: scenario.politenessMode || settings.politeness,
+      politeness: scenario.politenessMode || settings.politeness,
       goals: scenario.goals.map((goal, index) => ({ goal, completed: index < done })),
       transcript: isVoiceMode ? finalizedVoiceTranscript : transcript,
       voiceTranscriptEvents: isVoiceMode ? finalizedVoiceTranscript : voice.transcriptEvents,
@@ -178,6 +159,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
         conversationId: sessionResult.conversationId,
         scenario: sessionResult.scenario?.name,
         level: sessionResult.level,
+        supportLevel: sessionResult.supportLevel,
         politenessMode: sessionResult.politenessMode,
         practiceMode: sessionResult.practiceMode,
         duration: sessionResult.duration,
@@ -206,13 +188,14 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     if (isVoiceMode) {
       voice.sendContextualUpdate("The learner asked you to repeat more slowly. Repeat the previous Japanese line slower and simpler.");
     }
-    setHelp({type:"slower",label:"REPEAT SLOWER",jp:lastAi?.jp || scenario.opening,romaji:lastAi?.romaji || "",en:lastAi?.en || "The agent can repeat more slowly during Voice Mode."});
+    setHelp({type:"slower",label:"REPEAT SLOWER",jp:lastAi?.jp || scenario.opening,romaji:lastAi?.romaji || "",en:lastAi?.en || "The agent can repeat more slowly during voice practice."});
   };
   const formattedDuration = `${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
-  const composer = <div className="composer"><button className="mic-button" type="button" onClick={isVoiceMode && voice.isConnected ? voice.isListening ? voice.muteMicrophone : voice.unmuteMicrophone : undefined}>{isVoiceMode && voice.status === "Muted" ? <Pause/> : <Mic/>}</button><textarea rows="1" placeholder={isDemoMode ? "Demo responses are pre-filled…" : isVoiceMode ? "Voice Mode uses your microphone…" : "Type your response in Japanese…"} disabled={isDemoMode || isVoiceMode} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown}/><button type="button" onClick={sendTextMessage} disabled={!isTextMode || !draft.trim()} aria-label="Send message"><Send/></button></div>;
+  const supportLabel = settings.supportLevelLabel || getSupportLevelLabel(settings.supportLevel);
+  const composer = <div className="composer"><button className="mic-button" type="button" onClick={isVoiceMode && voice.isConnected ? voice.isListening ? voice.muteMicrophone : voice.unmuteMicrophone : undefined}>{isVoiceMode && voice.status === "Muted" ? <Pause/> : <Mic/>}</button><textarea rows="1" placeholder={isDemoMode ? "Demo responses are pre-filled..." : "Voice practice uses your microphone..."} disabled /></div>;
   return <div className={`app-screen conversation-page ${isVoiceMode ? "voice-session-active" : ""}`}>
-    <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.name}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{settings.level.split(" ")[0]}</span><span>{settings.politeness}</span><span>{activeMode}</span><b>{formattedDuration}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Reviewing…" : "End session"}</button></div></header>
-    {isVoiceMode && <div className="mobile-bottom-dock" role="region" aria-label="Live Voice Mode controls">
+    <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.name}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{supportLabel}</span><span>{scenario.registerLabel || scenario.politenessMode}</span><span>{isVoiceMode ? "Live voice" : "Demo flow"}</span><b>{formattedDuration}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Reviewing…" : "End session"}</button></div></header>
+    {(isVoiceMode || isDemoMode) && <div className="mobile-bottom-dock" role="region" aria-label={isVoiceMode ? "Live voice practice controls" : "Demo flow controls"}>
       {composer}
       <div className="mobile-live-session-bar">
         <div><b>{formattedDuration}</b><span> · {ending ? "Ending session" : roomStatus}</span></div>
@@ -227,9 +210,9 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
       </aside>
       <section className="conversation-main" ref={scrollAreaRef} onScroll={updateNearBottom}>
         {ending && <div className="feedback-loading" role="status"><AudioLines/><div><b>Reviewing your conversation…</b><span>Checking your goals and finalized transcript.</span></div></div>}
-        {isDemoMode && <div className="demo-banner"><Play/> <b>Demo Mode</b> — sample conversation only <span>Step {count} of {scenarioTranscript.length}</span></div>}
-        {isVoiceMode && voice.error && <div className="demo-banner"><AudioLines/> <b>{voice.error}</b> <button type="button" onClick={() => voice.startVoiceSession(sessionPayload)}>Try again</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Demo Mode"); }}>Continue with Demo Mode</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Text Mode"); }}>Continue with Text Mode</button></div>}
-        <div className="voice-stage"><span className="speaking-label">● {roomStatus.toUpperCase()}</span><div className="room-orb"><i/><i/><span><AudioLines/></span></div><p>{lastAi?.jp || (isVoiceMode ? "Voice Mode is getting ready…" : scenario.opening)}</p>{romaji && <i>{lastAi?.romaji}</i>}</div>
+        {isDemoMode && <div className="demo-banner"><Play/> <b>Demo flow</b> — sample conversation only <span>Step {count} of {scenarioTranscript.length}</span></div>}
+        {isVoiceMode && voice.error && <div className="demo-banner"><AudioLines/> <b>{voice.error}</b> <button type="button" onClick={() => voice.startVoiceSession(sessionPayload)}>Try again</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Demo Mode"); }}>View demo flow</button></div>}
+        <div className="voice-stage"><span className="speaking-label">● {roomStatus.toUpperCase()}</span><div className="room-orb"><i/><i/><span><AudioLines/></span></div><p>{lastAi?.jp || (isVoiceMode ? "Voice practice is getting ready..." : scenario.opening)}</p>{romaji && <i>{lastAi?.romaji}</i>}</div>
         <div className="transcript-title"><b>Conversation</b><span>LIVE TRANSCRIPT</span></div>
         <div className="transcript">{transcript.map((m,i)=><TranscriptBubble key={isVoiceMode ? voice.transcriptEvents[i]?.id || i : i} message={m} romaji={romaji} translation={translation}/>)}</div>
         {help && <div className={`help-card ${help.type}`}><button onClick={()=>setHelp(null)}>×</button><small>{help.label}</small><b>{help.jp}</b>{romaji && <i>{help.romaji}</i>}<span>{help.en}</span></div>}

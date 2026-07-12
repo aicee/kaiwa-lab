@@ -83,7 +83,7 @@ export async function POST(request) {
       {
         success: false,
         code: "INVALID_DEMO_ACCESS",
-        message: "Voice Mode requires demo access."
+        message: "Voice practice requires demo access."
       },
       { status: 403 }
     );
@@ -124,7 +124,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Unable to start Voice Mode right now. Please try again or continue with Demo Mode.",
+        message: "Unable to start voice practice right now. Please try again or view the demo flow.",
         demoModeAvailable: true
       },
       { status: 502 }

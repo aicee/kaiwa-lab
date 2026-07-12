@@ -27,7 +27,86 @@ export const scenarios = [
     jp: "ラーメン屋",
     icon: "Bowl",
     next: "cafe",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite service Japanese",
+    scene: {
+      image: null,
+      alt: "Ramen shop counter practice scene",
+      hotspots: [
+        {
+          id: "menu",
+          label: "メニュー",
+          reading: "メニュー",
+          romaji: "menyuu",
+          english: "menu",
+          phrase: "メニューをお願いします。",
+          phraseRomaji: "Menyuu o onegaishimasu.",
+          phraseEnglish: "The menu, please.",
+          x: 22,
+          y: 34
+        },
+        {
+          id: "water",
+          label: "お水",
+          reading: "おみず",
+          romaji: "omizu",
+          english: "water",
+          phrase: "お水をお願いします。",
+          phraseRomaji: "Omizu o onegaishimasu.",
+          phraseEnglish: "Water, please.",
+          x: 68,
+          y: 58
+        },
+        {
+          id: "gyoza",
+          label: "餃子",
+          reading: "ぎょうざ",
+          romaji: "gyouza",
+          english: "gyoza",
+          phrase: "餃子はありますか？",
+          phraseRomaji: "Gyouza wa arimasu ka?",
+          phraseEnglish: "Do you have gyoza?",
+          x: 46,
+          y: 72
+        },
+        {
+          id: "bill",
+          label: "お会計",
+          reading: "おかいけい",
+          romaji: "okaikei",
+          english: "bill / payment",
+          phrase: "お会計をお願いします。",
+          phraseRomaji: "Okaikei o onegaishimasu.",
+          phraseEnglish: "The bill, please.",
+          x: 82,
+          y: 42
+        },
+        {
+          id: "restroom",
+          label: "トイレ",
+          reading: "トイレ",
+          romaji: "toire",
+          english: "restroom",
+          phrase: "トイレはどこですか？",
+          phraseRomaji: "Toire wa doko desu ka?",
+          phraseEnglish: "Where is the restroom?",
+          x: 88,
+          y: 18
+        },
+        {
+          id: "ramen",
+          label: "ラーメン",
+          reading: "ラーメン",
+          romaji: "raamen",
+          english: "ramen",
+          phrase: "おすすめは何ですか？",
+          phraseRomaji: "Osusume wa nan desu ka?",
+          phraseEnglish: "What do you recommend?",
+          x: 38,
+          y: 52
+        }
+      ]
+    }
   },
   {
     id: "cafe",
@@ -57,7 +136,8 @@ export const scenarios = [
     jp: "カフェ",
     icon: "Coffee",
     next: "store",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite service Japanese"
   },
   {
     id: "store",
@@ -87,7 +167,8 @@ export const scenarios = [
     jp: "コンビニ",
     icon: "Store",
     next: "reservation",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite service Japanese"
   },
   {
     id: "reservation",
@@ -117,7 +198,8 @@ export const scenarios = [
     jp: "予約",
     icon: "Calendar",
     next: "allergies",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite phone Japanese"
   },
   {
     id: "allergies",
@@ -147,7 +229,8 @@ export const scenarios = [
     jp: "アレルギー",
     icon: "Shield",
     next: "clothes",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite service Japanese"
   },
   {
     id: "clothes",
@@ -177,7 +260,8 @@ export const scenarios = [
     jp: "買い物",
     icon: "Shirt",
     next: "hotel",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite service Japanese"
   },
   {
     id: "hotel",
@@ -207,7 +291,8 @@ export const scenarios = [
     jp: "ホテル",
     icon: "Hotel",
     next: "train",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite travel Japanese"
   },
   {
     id: "train",
@@ -237,7 +322,8 @@ export const scenarios = [
     jp: "駅・道案内",
     icon: "Train",
     next: "clinic",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite travel Japanese"
   },
   {
     id: "clinic",
@@ -267,7 +353,8 @@ export const scenarios = [
     jp: "クリニック",
     icon: "Stethoscope",
     next: "neighbor",
-    levels: ["N5", "N3", "N1"]
+    politenessMode: "Polite",
+    registerLabel: "Polite clinic Japanese"
   },
   {
     id: "neighbor",
@@ -297,7 +384,8 @@ export const scenarios = [
     jp: "ご近所",
     icon: "Sun",
     next: "workplace",
-    levels: ["N3", "N1"]
+    politenessMode: "Casual",
+    registerLabel: "Friendly casual Japanese"
   },
   {
     id: "workplace",
@@ -327,7 +415,8 @@ export const scenarios = [
     jp: "職場",
     icon: "Briefcase",
     next: "interview",
-    levels: ["N3", "N1"]
+    politenessMode: "Business",
+    registerLabel: "Professional beginner Japanese"
   },
   {
     id: "interview",
@@ -357,6 +446,7 @@ export const scenarios = [
     jp: "面接",
     icon: "MessagesSquare",
     next: "ramen",
-    levels: ["N3", "N1"]
+    politenessMode: "Business",
+    registerLabel: "Professional interview Japanese"
   }
 ];

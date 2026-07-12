@@ -14,9 +14,9 @@ The opening gives the conversation a reliable start, but it does not determine t
 
 ## Dynamic Variables
 
-The app sends these values to the server route for Voice Mode:
+The app sends these values to the server route for live voice practice:
 
-`{{scenario_name}}`, `{{scenario_role}}`, `{{scenario_description}}`, `{{scenario_opening}}`, `{{difficulty_level}}`, `{{politeness_mode}}`, `{{romaji_enabled}}`, `{{translation_enabled}}`, `{{practice_mode}}`, `{{user_goal}}`, `{{scenario_goals}}`, `{{useful_phrases}}`
+`{{scenario_name}}`, `{{scenario_role}}`, `{{scenario_description}}`, `{{scenario_opening}}`, `{{difficulty_level}}`, `{{politeness_mode}}`, `{{support_level}}`, `{{romaji_enabled}}`, `{{translation_enabled}}`, `{{practice_mode}}`, `{{user_goal}}`, `{{scenario_goals}}`, `{{useful_phrases}}`
 
 `scenario_goals` are flexible practice outcomes, not ordered steps. `useful_phrases` are optional learner support, not required answers.
 
@@ -38,10 +38,10 @@ TODO: If the live transcript format later includes separate Japanese, romaji, an
 
 Detailed correction happens after the session through OpenAI feedback. Goal completion should be evaluated from the completed transcript later, not from exact phrase checks during roleplay.
 
-Demo Mode and current Text Mode mock progress are preview behavior. They should remain separate from future real transcript analysis.
+The public demo flow is preview behavior. It should remain separate from future real transcript analysis.
 
 ## Security
 
-Voice Mode starts by calling `/api/elevenlabs/session` after demo access is validated. That server route uses `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` to request a temporary ElevenLabs conversation credential, preferring `/v1/convai/conversation/token` and falling back to `/v1/convai/conversation/get-signed-url`.
+Live voice practice starts by calling `/api/elevenlabs/session` after demo access is validated. That server route uses `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` to request a temporary ElevenLabs conversation credential, preferring `/v1/convai/conversation/token` and falling back to `/v1/convai/conversation/get-signed-url`.
 
 The browser receives only the temporary `conversationToken` or `signedUrl` plus the dynamic variables. Never ship `ELEVENLABS_API_KEY` or `ELEVENLABS_AGENT_ID` to the browser.

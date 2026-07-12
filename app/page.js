@@ -11,6 +11,12 @@ import { scenarios } from "@/data/scenarios";
 import { mockFeedback } from "@/data/mockFeedback";
 import { generateSessionFeedback } from "@/lib/apiPlaceholders";
 import {
+  DEMO_PRACTICE_MODE,
+  VOICE_PRACTICE_MODE,
+  createDefaultPracticeSettings,
+  getSupportLevel
+} from "@/lib/practiceSettings";
+import {
   clearStoredDemoAccessHint,
   hasStoredDemoAccessHint,
   refreshDemoAccessHint,
@@ -20,13 +26,7 @@ import {
 export default function Home() {
   const [view, setView] = useState("home");
   const [scenario, setScenario] = useState(scenarios[0]);
-  const [settings, setSettings] = useState({
-    level: "N5 Beginner",
-    mode: "Demo Mode",
-    politeness: "Polite",
-    romaji: true,
-    translation: true
-  });
+  const [settings, setSettings] = useState(createDefaultPracticeSettings);
   const [feedback, setFeedback] = useState(mockFeedback);
   const [sessionResult, setSessionResult] = useState(null);
   const [voiceUnlocked, setVoiceUnlocked] = useState(false);
@@ -86,8 +86,25 @@ export default function Home() {
 
   const chooseScenario = (item) => {
     setScenario(item);
+    setSettings((current) => ({
+      ...current,
+      mode: VOICE_PRACTICE_MODE,
+      politeness: item.politenessMode || current.politeness
+    }));
     setView("setup");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const startDemoFlow = () => {
+    setScenario(scenarios[0]);
+    setSettings((current) => ({
+      ...current,
+      mode: DEMO_PRACTICE_MODE,
+      politeness: scenarios[0].politenessMode || current.politeness
+    }));
+    setSessionResult(null);
+    setFeedback(mockFeedback);
+    setView("conversation");
   };
 
   const goHome = (anchor) => {
@@ -99,7 +116,7 @@ export default function Home() {
     <>
       {(view === "home" || view === "setup") && <Navbar view={view} onHome={() => goHome("#top")} onNavigate={goHome} onPractice={() => chooseScenario(scenarios[0])} />}
       <main>
-        {view === "home" && <LandingPage onSelect={chooseScenario} onDemo={() => chooseScenario(scenarios[0])} />}
+        {view === "home" && <LandingPage onSelect={chooseScenario} onDemo={startDemoFlow} />}
         {view === "setup" && (
           <PracticeSetup
             scenario={scenario}
@@ -107,12 +124,11 @@ export default function Home() {
             setSettings={setSettings}
             onBack={() => goHome("#scenarios")}
             onStart={async () => {
-              if (settings.mode === "Voice Mode") {
-                const unlocked = await requireVoiceAccess();
-                if (!unlocked) {
-                  return;
-                }
+              const unlocked = await requireVoiceAccess();
+              if (!unlocked) {
+                return;
               }
+              setSettings((s) => ({ ...s, mode: VOICE_PRACTICE_MODE, politeness: scenario.politenessMode || s.politeness }));
               setView("conversation");
             }}
             voiceUnlocked={voiceUnlocked}
@@ -122,9 +138,10 @@ export default function Home() {
             showDemoCodeModal={showDemoCodeModal}
             setShowDemoCodeModal={setShowDemoCodeModal}
             onContinueDemo={() => {
-              setSettings((s) => ({ ...s, mode: "Demo Mode" }));
+              setSettings((s) => ({ ...s, mode: DEMO_PRACTICE_MODE, politeness: scenario.politenessMode || s.politeness }));
               setUnlockError("");
               setShowDemoCodeModal(false);
+              setView("conversation");
             }}
             onUnlockVoice={async (event) => {
               event.preventDefault();
@@ -143,17 +160,18 @@ export default function Home() {
                 const data = await response.json();
 
                 if (!data.success || !data.unlocked) {
-                  setUnlockError("That code did not work. You can still use Demo Mode.");
+                  setUnlockError("That code did not work. You can still view the demo flow.");
                   return;
                 }
 
                 storeDemoAccessHint();
                 setVoiceUnlocked(true);
-                setSettings((s) => ({ ...s, mode: "Voice Mode" }));
-                setUnlockMessage("Voice Mode unlocked for this session.");
+                setSettings((s) => ({ ...s, mode: VOICE_PRACTICE_MODE, politeness: scenario.politenessMode || s.politeness }));
+                setUnlockMessage("Voice practice unlocked for this session.");
                 setShowDemoCodeModal(false);
+                setView("conversation");
               } catch {
-                setUnlockError("That code did not work. You can still use Demo Mode.");
+                setUnlockError("That code did not work. You can still view the demo flow.");
               } finally {
                 setUnlocking(false);
               }
@@ -166,7 +184,7 @@ export default function Home() {
             settings={settings}
             onEnd={async (sessionData) => {
               setSessionResult(sessionData);
-              if (sessionData?.practiceMode !== "Voice Mode") {
+              if (sessionData?.practiceMode !== VOICE_PRACTICE_MODE) {
                 setFeedback(mockFeedback);
                 setView("feedback");
                 return;
@@ -196,7 +214,7 @@ export default function Home() {
               setVoiceUnlocked(false);
               setUnlockError("Your demo access expired. Enter the demo code again to continue.");
               setUnlockMessage("");
-              setSettings((s) => ({ ...s, mode: "Voice Mode" }));
+              setSettings((s) => ({ ...s, mode: VOICE_PRACTICE_MODE, politeness: scenario.politenessMode || s.politeness }));
               setView("setup");
               setShowDemoCodeModal(true);
             }}
@@ -210,7 +228,17 @@ export default function Home() {
             sessionResult={sessionResult}
             onRestart={() => setView("conversation")}
             onHarder={() => {
-              setSettings((s) => ({ ...s, level: s.level === "N5 Beginner" ? "N3 Intermediate" : "N1 Advanced" }));
+              setSettings((s) => {
+                const nextValue = s.supportLevel === "guided" ? "natural" : "challenge";
+                const support = getSupportLevel(nextValue);
+                return {
+                  ...s,
+                  supportLevel: support.value,
+                  supportLevelLabel: support.label,
+                  romaji: support.romaji,
+                  translation: support.translation
+                };
+              });
               setView("setup");
             }}
             onNext={(scenarioId) => chooseScenario(scenarios.find((s) => s.id === scenarioId) || scenarios.find((s) => s.id === scenario.next) || scenarios[1])}
