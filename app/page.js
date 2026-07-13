@@ -242,10 +242,11 @@ export default function Home() {
               setView("setup");
             }}
             onNext={(scenarioId) => chooseScenario(scenarios.find((s) => s.id === scenarioId) || scenarios.find((s) => s.id === scenario.next) || scenarios[1])}
+            onBackToScenarios={() => goHome("#scenarios")}
           />
         )}
       </main>
-      {view === "home" && <Footer />}
+      {(view === "home" || view === "feedback") && <Footer />}
     </>
   );
 }

@@ -49,8 +49,19 @@ export default function LandingPage({ onSelect, onDemo }) {
 
       <section className="section shell" id="how">
         <div className="section-kicker">WHY KAIWA LAB</div>
-        <div className="section-heading"><h2>From “I understand it” to<br/><em>“I can say it.”</em></h2><p>Reading is different from replying in the moment. Kaiwa Lab gives beginners a place to practice speaking before real life asks for an answer.</p></div>
+        <div className="section-heading"><h2>From “I understand it” to<br/><em>“I can say it.”</em></h2><p>Reading is different from replying in the moment. Kaiwa Lab gives beginners a place to practice speaking, get stuck, and recover before real life asks for an answer.</p></div>
         <div className="feature-grid">{features.map(([Icon, title, body], i) => <article className="feature" key={title}><span className="feature-num">0{i + 1}</span><div className="feature-icon"><Icon /></div><h3>{title}</h3><p>{body}</p></article>)}</div>
+        <div className="repair-strip">
+          <div className="repair-strip-intro">
+            <div className="section-kicker">WHEN WORDS DISAPPEAR</div>
+            <h3>Freeze? That&apos;s part of practice.</h3>
+          </div>
+          <div className="repair-list">
+            {repairPhrases.map(([jp, romaji, english], i) =>
+              <div className={`repair-item r${i}`} key={jp}><span>0{i + 1}</span><div><b>{jp}</b><i>{romaji}</i><p>{english}</p></div></div>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="section scenarios-section" id="scenarios">
@@ -58,19 +69,6 @@ export default function LandingPage({ onSelect, onDemo }) {
           <div className="section-kicker">CHOOSE YOUR MOMENT</div>
           <div className="section-heading"><h2>Where do you want to<br/><em>feel more confident?</em></h2><p>Practice the situations where beginner Japanese suddenly has to become spoken Japanese.</p></div>
           <ScenarioGrid onSelect={onSelect} />
-        </div>
-      </section>
-
-      <section className="section repair-section shell">
-        <div className="repair-intro">
-          <div className="section-kicker">WHEN WORDS DISAPPEAR</div>
-          <h2>Freeze?<br/><em>That&apos;s part of practice.</em></h2>
-          <p>Kaiwa Lab helps you recover without ending the conversation.</p>
-        </div>
-        <div className="repair-list">
-          {repairPhrases.map(([jp, romaji, english], i) =>
-            <div className={`repair-item r${i}`} key={jp}><span>0{i + 1}</span><div><b>{jp}</b><i>{romaji}</i><p>{english}</p></div></div>
-          )}
         </div>
       </section>
 

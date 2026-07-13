@@ -8,6 +8,38 @@ import { buildElevenLabsDynamicVariables } from "@/lib/scenarioPrompts";
 import { getSupportLevelLabel } from "@/lib/practiceSettings";
 import TranscriptBubble from "./TranscriptBubble";
 
+const reviewMessages = [
+  { at: 0, title: "Reviewing your conversation…", body: "Checking what you said and how the interaction went." },
+  { at: 5, title: "Finding the moments that helped you communicate…", body: "Looking for clear strengths and useful corrections." },
+  { at: 12, title: "Preparing your practice notes…", body: "Choosing the most useful phrases for next time." },
+  { at: 20, title: "Still reviewing your conversation…", body: "A detailed voice session can take a little longer to analyze." }
+];
+
+const normalizeGoalText = (text) => (text || "").toLowerCase().replace(/[。、,.!?！？\s]/g, "");
+
+function includesAny(text, terms) {
+  return terms.some((term) => text.includes(term));
+}
+
+function userCompletedGoal({ scenarioId, goal, usefulPhrase, userText }) {
+  const text = normalizeGoalText(userText);
+  const goalText = normalizeGoalText(goal);
+  const phrase = normalizeGoalText(usefulPhrase);
+
+  if (!text) return false;
+  if (phrase && phrase.length >= 5 && text.includes(phrase)) return true;
+
+  if (scenarioId === "ramen") {
+    if (goalText.includes("numberofpeople")) return includesAny(text, ["一人", "ひとり", "1人", "二人", "ふたり", "2人", "三人", "3人", "四人", "4人"]);
+    if (goalText.includes("recommendation")) return text.includes("おすすめ") && includesAny(text, ["何", "なに", "なん", "ありますか", "ですか", "は"]);
+    if (goalText.includes("orderfood")) return includesAny(text, ["ラーメン", "餃子", "チャーハン", "つけ麺"]) && includesAny(text, ["ください", "お願いします", "一つ", "ひとつ"]);
+    if (goalText.includes("wateroranotherrequest")) return includesAny(text, ["お水", "水", "メニュー", "トイレ"]) && includesAny(text, ["ください", "お願いします", "どこ", "ありますか"]);
+    if (goalText.includes("pay")) return includesAny(text, ["会計", "お会計", "払います", "カード", "現金"]) && includesAny(text, ["お願いします", "ください", "払います"]);
+  }
+
+  return phrase && phrase.length >= 4 && text.includes(phrase);
+}
+
 export default function ConversationRoom({ scenario, settings, onEnd, onVoiceAccessExpired }) {
   return <ConversationProvider><ConversationRoomContent scenario={scenario} settings={settings} onEnd={onEnd} onVoiceAccessExpired={onVoiceAccessExpired} /></ConversationProvider>;
 }
@@ -31,13 +63,15 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     },
     ...mockTranscript.slice(1)
   ], [scenario.opening]);
-  const [count, setCount] = useState(isDemoMode ? 1 : scenarioTranscript.length);
+  const [count, setCount] = useState(isDemoMode ? 1 : 0);
   const [romaji, setRomaji] = useState(settings.romaji);
   const [translation, setTranslation] = useState(settings.translation);
   const [help, setHelp] = useState(null);
   const [seconds, setSeconds] = useState(isVoiceMode ? 0 : 42);
   const [ending, setEnding] = useState(false);
   const [showJumpLatest, setShowJumpLatest] = useState(false);
+  const [completedGoalIndexes, setCompletedGoalIndexes] = useState(() => new Set());
+  const [reviewElapsed, setReviewElapsed] = useState(0);
   const simpleHelpJapanese = useMemo(() => {
     const phrase = scenario.usefulPhrases[0] || scenario.opening;
     return phrase.replace(/どうぞ。?$/u, "").trim() || phrase;
@@ -51,6 +85,28 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     showTranslation: settings.translation,
     practiceMode: "Voice Mode"
   }), [scenario, settings.level, settings.politeness, settings.romaji, settings.translation, settings.supportLevel, settings.supportLevelLabel]);
+
+  useEffect(() => {
+    setCompletedGoalIndexes(new Set());
+    endingRef.current = false;
+    setEnding(false);
+    setHelp(null);
+    setShowJumpLatest(false);
+
+    if (isVoiceMode) {
+      setCount(0);
+      setSeconds(0);
+      voiceStartedRef.current = false;
+    }
+
+    if (process.env.NODE_ENV === "development" && isVoiceMode) {
+      console.info("Kaiwa Voice diagnostics", {
+        stage: "GOAL_PROGRESS_RESET",
+        scenarioId: scenario.id,
+        goalCount: scenario.goals.length
+      });
+    }
+  }, [isVoiceMode, scenario.id, scenario.goals.length]);
 
   useEffect(() => {
     if (!isVoiceMode || voiceStartedRef.current) return;
@@ -88,11 +144,63 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     onVoiceAccessExpired?.();
   }, [isVoiceMode, onVoiceAccessExpired, voice.error]);
 
+  useEffect(() => {
+    if (!isVoiceMode) return;
+
+    const userText = voice.finalTranscriptEvents
+      .filter((turn) => turn.role === "user" && turn.isFinal !== false)
+      .map((turn) => turn.text)
+      .join(" ");
+    const nextCompleted = new Set();
+
+    scenario.goals.forEach((goal, index) => {
+      if (userCompletedGoal({
+        scenarioId: scenario.id,
+        goal,
+        usefulPhrase: scenario.usefulPhrases[index],
+        userText
+      })) {
+        nextCompleted.add(index);
+      }
+    });
+
+    setCompletedGoalIndexes((current) => {
+      const sameValues = current.size === nextCompleted.size && [...current].every((index) => nextCompleted.has(index));
+      if (sameValues) return current;
+
+      if (process.env.NODE_ENV === "development") {
+        console.info("Kaiwa Voice diagnostics", {
+          stage: "GOAL_PROGRESS_UPDATED",
+          completedGoalCount: nextCompleted.size,
+          totalGoalCount: scenario.goals.length
+        });
+      }
+
+      return nextCompleted;
+    });
+  }, [isVoiceMode, scenario.goals, scenario.id, scenario.usefulPhrases, voice.finalTranscriptEvents]);
+
+  useEffect(() => {
+    if (!ending) {
+      setReviewElapsed(0);
+      return undefined;
+    }
+
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setReviewElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [ending]);
+
   const transcript = isVoiceMode ? voice.transcript : scenarioTranscript.slice(0, count);
   const finalizedMessageCount = isVoiceMode ? voice.finalTranscriptEvents.length : transcript.length;
   // Demo flow goal progress is intentionally mock-only. Real goal completion
   // will be generated after the session from the completed transcript via OpenAI feedback.
-  const done = Math.min(3, Math.ceil(count / 2));
+  const done = isVoiceMode ? completedGoalIndexes.size : Math.min(3, Math.ceil(count / 2));
+  const currentGoalIndex = scenario.goals.findIndex((_, index) => !completedGoalIndexes.has(index));
+  const reviewMessage = [...reviewMessages].reverse().find((message) => reviewElapsed >= message.at) || reviewMessages[0];
   const next = () => { setCount(c => Math.min(scenarioTranscript.length, c + 1)); setHelp(null); };
   const lastAi = [...transcript].reverse().find(m => m.speaker === "ai");
   const roomStatus = isVoiceMode ? voice.status : "Ready";
@@ -143,7 +251,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
       supportLevelLabel: supportLabel,
       politenessMode: scenario.politenessMode || settings.politeness,
       politeness: scenario.politenessMode || settings.politeness,
-      goals: scenario.goals.map((goal, index) => ({ goal, completed: index < done })),
+      goals: scenario.goals.map((goal, index) => ({ goal, completed: isVoiceMode ? completedGoalIndexes.has(index) : index < done })),
       transcript: isVoiceMode ? finalizedVoiceTranscript : transcript,
       voiceTranscriptEvents: isVoiceMode ? finalizedVoiceTranscript : voice.transcriptEvents,
       conversationId: isVoiceMode ? voice.conversationId : null,
@@ -164,7 +272,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
         practiceMode: sessionResult.practiceMode,
         duration: sessionResult.duration,
         endedAt: sessionResult.endedAt,
-        transcript: sessionResult.transcript
+        transcriptLength: sessionResult.transcript?.length || 0
       });
     }
 
@@ -205,11 +313,15 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     <div className="room-layout">
       <aside className="goals-panel">
         <small>SESSION PROGRESS</small><div className="goal-total"><b>{done}</b><span>of {scenario.goals.length}<br/>goals complete</span></div><div className="progress"><i style={{width: `${done/scenario.goals.length*100}%`}}/></div>
-        <div className="goal-checks">{scenario.goals.map((g,i)=><div className={i<done?"complete":""} key={g}><span>{i<done?<Check/>:i===done?<ChevronRight/>:""}</span><p>{g}<small>{i<done?"Completed":i===done?"Current goal":"Not yet"}</small></p></div>)}</div>
+        <div className="goal-checks">{scenario.goals.map((g,i)=>{
+          const complete = isVoiceMode ? completedGoalIndexes.has(i) : i < done;
+          const current = isVoiceMode ? i === currentGoalIndex : i === done;
+          return <div className={complete?"complete":""} key={g}><span>{complete?<Check/>:current?<ChevronRight/>:""}</span><p>{g}<small>{complete?"Completed":current?"Current goal":"Not yet"}</small></p></div>;
+        })}</div>
         <div className="session-tip"><Lightbulb/><div><b>Session tip</b><span>Mistakes are welcome. Keep the conversation moving.</span></div></div>
       </aside>
       <section className="conversation-main" ref={scrollAreaRef} onScroll={updateNearBottom}>
-        {ending && <div className="feedback-loading" role="status"><AudioLines/><div><b>Reviewing your conversation…</b><span>Checking your goals and finalized transcript.</span></div></div>}
+        {ending && <div className="feedback-loading" role="status"><AudioLines/><div><b>{reviewMessage.title}</b><span>{reviewMessage.body}</span></div></div>}
         {isDemoMode && <div className="demo-banner"><Play/> <b>Demo flow</b> — sample conversation only <span>Step {count} of {scenarioTranscript.length}</span></div>}
         {isVoiceMode && voice.error && <div className="demo-banner"><AudioLines/> <b>{voice.error}</b> <button type="button" onClick={() => voice.startVoiceSession(sessionPayload)}>Try again</button> <button type="button" onClick={() => { voice.endVoiceSession(); setActiveMode("Demo Mode"); }}>View demo flow</button></div>}
         <div className="voice-stage"><span className="speaking-label">● {roomStatus.toUpperCase()}</span><div className="room-orb"><i/><i/><span><AudioLines/></span></div><p>{lastAi?.jp || (isVoiceMode ? "Voice practice is getting ready..." : scenario.opening)}</p>{romaji && <i>{lastAi?.romaji}</i>}</div>

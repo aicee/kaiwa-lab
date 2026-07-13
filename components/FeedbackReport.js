@@ -1,5 +1,5 @@
 "use client";
-import { ArrowRight, Check, CheckCircle2, ChevronDown, Copy, Download, RotateCcw, Sparkles, Target } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronDown, Copy, Download, RotateCcw, Sparkles, Target } from "lucide-react";
 import { mockFeedback } from "@/data/mockFeedback";
 import { scenarios } from "@/data/scenarios";
 import { getSupportLevelLabel } from "@/lib/practiceSettings";
@@ -147,7 +147,7 @@ function buildSummary({ scenario, settings, duration, feedback, nextScenario }) 
   return lines.join("\n");
 }
 
-export default function FeedbackReport({ scenario, settings, feedback, sessionResult, onRestart, onHarder, onNext }) {
+export default function FeedbackReport({ scenario, settings, feedback, sessionResult, onRestart, onHarder, onNext, onBackToScenarios }) {
   const [copied, setCopied] = useState(false);
   const [showLanguageNotes, setShowLanguageNotes] = useState(false);
   const f = useMemo(() => getDisplayFeedback(normalizeFeedback(feedback, scenario)), [feedback, scenario]);
@@ -163,6 +163,7 @@ export default function FeedbackReport({ scenario, settings, feedback, sessionRe
   };
 
   return <div className="app-screen feedback-page"><div className="report-shell">
+    <button className="report-back" type="button" onClick={onBackToScenarios}><ArrowLeft/> Back to scenarios</button>
     <div className="report-top"><span className="success-mark"><Check/></span><div><small>SESSION COMPLETE</small><h1>よくできました！</h1><p>Nice work. Here’s what to carry into your next conversation.</p></div><div className="report-actions"><button onClick={copy}>{copied?<Check/>:<Copy/>} {copied?"Copied":"Copy summary"}</button><button onClick={()=>window.print()}><Download/> Download report</button></div></div>
     {fallbackNotice && <div className="feedback-notice">{fallbackNotice}</div>}
     <div className="session-summary"><div><small>SCENARIO</small><b>{scenario.name}</b></div><div><small>PRACTICE SUPPORT</small><b>{supportLabel}</b></div><div><small>REGISTER</small><b>{scenario.registerLabel || scenario.politenessMode}</b></div><div><small>DURATION</small><b>{duration}</b></div></div>

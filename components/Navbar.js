@@ -4,7 +4,7 @@ import { Menu, X } from "lucide-react";
 
 export default function Navbar({ view, onHome, onNavigate, onPractice }) {
   const [open, setOpen] = useState(false);
-  const links = [["Scenarios", "#scenarios"], ["How it works", "#how"], ["Demo", "#demo"]];
+  const links = [["Scenarios", "#scenarios"], ["Demo", "#demo"]];
   return (
     <header className="nav-wrap">
       <nav className="nav shell">
