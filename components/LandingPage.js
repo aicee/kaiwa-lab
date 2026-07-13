@@ -4,7 +4,7 @@ import ScreenshotMockups from "./ScreenshotMockups";
 
 const features = [
   [Mic2, "Speak out loud", "Practice answering with your voice instead of only reading or memorizing."],
-  [CircleHelp, "Get unstuck", "Ask for a hint, a simpler explanation, or a slower repeat when the words disappear."],
+  [CircleHelp, "Get unstuck", "When words disappear, say it naturally and keep the conversation moving."],
   [MessageSquareText, "Review what to practice", "Finish with focused feedback on what worked and what to try next."]
 ];
 
@@ -41,7 +41,7 @@ export default function LandingPage({ onSelect, onDemo }) {
             <div className="goal-row"><span>Session goals</span><span>2 of 4</span></div>
             <div className="progress"><i style={{ width: "50%" }} /></div>
           </div>
-          <div className="float-note"><Sparkles size={16}/><div><small>LIVE SUGGESTION</small><b>おすすめは何ですか？</b><span>What do you recommend?</span></div></div>
+          <div className="float-note"><Sparkles size={16}/><div><small>WHEN YOU GET STUCK</small><b>もう一度お願いします。</b><span>Say it during the conversation.</span></div></div>
         </div>
       </section>
 

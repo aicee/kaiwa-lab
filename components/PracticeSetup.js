@@ -16,15 +16,12 @@ export default function PracticeSetup({
   onUnlockVoice,
   onContinueDemo
 }) {
-  const set = (key, value) => setSettings((s) => ({ ...s, [key]: value }));
   const selectSupportLevel = (value) => {
     const support = getSupportLevel(value);
     setSettings((s) => ({
       ...s,
       supportLevel: support.value,
-      supportLevelLabel: support.label,
-      romaji: support.romaji,
-      translation: support.translation
+      supportLevelLabel: support.label
     }));
   };
 
@@ -42,8 +39,6 @@ export default function PracticeSetup({
           <div className="step-label">PRACTICE SETUP <span>LIVE VOICE PRACTICE</span></div>
           <h2>Make this session <em>yours.</em></h2><p className="lead">You can change these settings before every practice.</p>
           <fieldset><legend>How much help do you want?</legend><div className="choice-list">{supportLevels.map((support) => <button type="button" className={settings.supportLevel === support.value ? "active" : ""} onClick={() => selectSupportLevel(support.value)} key={support.value}><span className="radio"/><div><b>{support.label}</b><p>{support.description}</p></div></button>)}</div></fieldset>
-          <div className="toggle-row"><div><b>Show romaji</b><span>Reading support below Japanese</span></div><button className={`toggle ${settings.romaji ? "on" : ""}`} onClick={() => set("romaji", !settings.romaji)}><i/></button></div>
-          <div className="toggle-row"><div><b>Show translation</b><span>Short English meaning below messages</span></div><button className={`toggle ${settings.translation ? "on" : ""}`} onClick={() => set("translation", !settings.translation)}><i/></button></div>
           {unlockMessage && <p className="unlock-success">{unlockMessage}</p>}
           <button className="btn btn-red start-btn" onClick={onStart}>Start conversation <span>→</span></button>
           <p className="secure-note"><ShieldCheck/> API credentials stay on secure backend routes.</p>

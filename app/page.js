@@ -234,9 +234,7 @@ export default function Home() {
                 return {
                   ...s,
                   supportLevel: support.value,
-                  supportLevelLabel: support.label,
-                  romaji: support.romaji,
-                  translation: support.translation
+                  supportLevelLabel: support.label
                 };
               });
               setView("setup");

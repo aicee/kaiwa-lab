@@ -30,7 +30,7 @@ Do not send an app-generated first message such as "Start the session as...". Th
 
 ElevenLabs should speak natural Japanese dialogue.
 
-Romaji should not be spoken aloud. English translation should not automatically be spoken after every Japanese response. Romaji and translation are UI display options only. Spoken English should happen only when the learner asks for help or says they do not understand.
+Romaji should not be spoken aloud. English translation should not automatically be spoken after every Japanese response. The app currently keeps `romaji_enabled` and `translation_enabled` as compatibility variables and passes both as `"false"` because live transcript turns do not include separate display layers. Spoken English should happen only when the learner asks for help or says they do not understand.
 
 TODO: If the live transcript format later includes separate Japanese, romaji, and English fields, render those separately in the UI instead of treating them as one spoken message.
 
