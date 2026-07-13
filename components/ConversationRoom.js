@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConversationProvider } from "@elevenlabs/react";
 import { AudioLines, Check, ChevronRight, CircleHelp, Languages, Lightbulb, Mic, Pause, Play, RotateCcw, Square } from "lucide-react";
 import { mockTranscript } from "@/data/mockTranscript";
@@ -40,6 +40,28 @@ function userCompletedGoal({ scenarioId, goal, usefulPhrase, userText }) {
   return phrase && phrase.length >= 4 && text.includes(phrase);
 }
 
+function LiveSupportPanel({ support, onClear }) {
+  if (!support) return null;
+
+  return <div className={`context-support-card ${support.type}`}>
+    <button type="button" className="support-clear" onClick={onClear} aria-label="Clear live help">×</button>
+    <small>{support.title}</small>
+    {support.message && <p>{support.message}</p>}
+    {(support.japanese || support.romaji || support.english) && <div className="support-example">
+      {support.japanese && <b>{support.japanese}</b>}
+      {support.romaji && <i>{support.romaji}</i>}
+      {support.english && <span>{support.english}</span>}
+    </div>}
+    {Array.isArray(support.options) && support.options.length > 0 && <div className="support-options">
+      {support.options.map((option, index) => <div className="support-example" key={`${option.japanese}-${index}`}>
+        <b>{option.japanese}</b>
+        {option.romaji && <i>{option.romaji}</i>}
+        {option.english && <span>{option.english}</span>}
+      </div>)}
+    </div>}
+  </div>;
+}
+
 export default function ConversationRoom({ scenario, settings, onEnd, onVoiceAccessExpired }) {
   return <ConversationProvider><ConversationRoomContent scenario={scenario} settings={settings} onEnd={onEnd} onVoiceAccessExpired={onVoiceAccessExpired} /></ConversationProvider>;
 }
@@ -66,16 +88,14 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   const [count, setCount] = useState(isDemoMode ? 1 : 0);
   const [romaji, setRomaji] = useState(settings.romaji);
   const [translation, setTranslation] = useState(settings.translation);
-  const [help, setHelp] = useState(null);
+  const [conversationSupport, setConversationSupport] = useState(null);
+  const [supportLoading, setSupportLoading] = useState(null);
+  const [supportError, setSupportError] = useState("");
   const [seconds, setSeconds] = useState(isVoiceMode ? 0 : 42);
   const [ending, setEnding] = useState(false);
   const [showJumpLatest, setShowJumpLatest] = useState(false);
   const [completedGoalIndexes, setCompletedGoalIndexes] = useState(() => new Set());
   const [reviewElapsed, setReviewElapsed] = useState(0);
-  const simpleHelpJapanese = useMemo(() => {
-    const phrase = scenario.usefulPhrases[0] || scenario.opening;
-    return phrase.replace(/どうぞ。?$/u, "").trim() || phrase;
-  }, [scenario.opening, scenario.usefulPhrases]);
   const sessionPayload = useMemo(() => buildElevenLabsDynamicVariables({
     scenario,
     level: settings.level,
@@ -90,7 +110,9 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     setCompletedGoalIndexes(new Set());
     endingRef.current = false;
     setEnding(false);
-    setHelp(null);
+    setConversationSupport(null);
+    setSupportLoading(null);
+    setSupportError("");
     setShowJumpLatest(false);
 
     if (isVoiceMode) {
@@ -201,8 +223,27 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
   const done = isVoiceMode ? completedGoalIndexes.size : Math.min(3, Math.ceil(count / 2));
   const currentGoalIndex = scenario.goals.findIndex((_, index) => !completedGoalIndexes.has(index));
   const reviewMessage = [...reviewMessages].reverse().find((message) => reviewElapsed >= message.at) || reviewMessages[0];
-  const next = () => { setCount(c => Math.min(scenarioTranscript.length, c + 1)); setHelp(null); };
+  const next = () => { setCount(c => Math.min(scenarioTranscript.length, c + 1)); setConversationSupport(null); setSupportError(""); };
   const lastAi = [...transcript].reverse().find(m => m.speaker === "ai");
+  const latestAgentTurn = useMemo(() => {
+    if (isVoiceMode) {
+      return [...voice.finalTranscriptEvents].reverse().find((turn) => turn.role === "agent" && turn.isFinal !== false && turn.text?.trim()) || null;
+    }
+
+    for (let index = transcript.length - 1; index >= 0; index -= 1) {
+      const item = transcript[index];
+      if (item?.speaker === "ai" && item.jp?.trim()) {
+        return {
+          id: `demo-agent:${index}:${item.jp.length}`,
+          role: "agent",
+          text: item.jp,
+          isFinal: true
+        };
+      }
+    }
+
+    return null;
+  }, [isVoiceMode, transcript, voice.finalTranscriptEvents]);
   const roomStatus = isVoiceMode ? voice.status : "Ready";
   const updateNearBottom = () => {
     const element = scrollAreaRef.current;
@@ -228,6 +269,15 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     }
     setShowJumpLatest(true);
   }, [finalizedMessageCount, isVoiceMode]);
+
+  useEffect(() => {
+    if (!conversationSupport?.relatedAgentTurnId || !latestAgentTurn?.id) return;
+    if (conversationSupport.relatedAgentTurnId !== latestAgentTurn.id) {
+      setConversationSupport(null);
+      setSupportError("");
+      setSupportLoading(null);
+    }
+  }, [conversationSupport?.relatedAgentTurnId, latestAgentTurn?.id]);
 
   const endSession = async () => {
     if (endingRef.current) return;
@@ -279,28 +329,90 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
     if (isVoiceMode && voice.isConnected) voice.endVoiceSession();
     await onEnd(sessionResult);
   };
-  const showHint = () => {
-    const phrase = scenario.usefulPhrases[Math.min(2,scenario.usefulPhrases.length-1)];
-    if (isVoiceMode) {
-      voice.sendContextualUpdate(`The learner asked for a short hint. Offer this as optional support if appropriate: ${phrase}`);
+  const requestLiveHelp = useCallback(async (helpType) => {
+    if (!latestAgentTurn) {
+      setConversationSupport(null);
+      setSupportError("Wait for your conversation partner to speak first.");
+      return;
     }
-    setHelp({type:"hint",label:"TRY SAYING",jp:phrase,romaji:"",en:"Optional phrase you can adapt to your answer."});
-  };
-  const explainLast = () => {
-    if (isVoiceMode) {
-      voice.sendContextualUpdate("The learner explicitly asked for help. Give one short English explanation, then repeat your previous Japanese line in a shorter, simpler form. Do not add filler such as douzo/どうぞ unless it is essential. Continue the roleplay afterward in Japanese.");
+
+    setSupportLoading(helpType);
+    setSupportError("");
+
+    if (isVoiceMode && helpType === "explanation") {
+      voice.sendContextualUpdate(
+        `The learner explicitly asked for help understanding your latest finalized message: "${latestAgentTurn.text}". Give one short English explanation, then repeat that Japanese line in a shorter, simpler form if needed. Do not add filler unless it is essential. Continue the roleplay afterward in Japanese.`,
+        { contextId: `live-help:${latestAgentTurn.id}:explanation` }
+      );
     }
-    setHelp({type:"explain",label:"SIMPLE EXPLANATION",jp:simpleHelpJapanese,romaji:"",en:"Short help: answer the main question simply, then keep going in Japanese."});
-  };
-  const repeatSlower = () => {
-    if (isVoiceMode) {
-      voice.sendContextualUpdate("The learner asked you to repeat more slowly. Repeat the previous Japanese line slower and simpler.");
+
+    if (isVoiceMode && helpType === "repeat") {
+      voice.sendContextualUpdate(
+        `The learner asked you to repeat more slowly. Repeat only your latest finalized Japanese message more slowly: "${latestAgentTurn.text}". Do not introduce a new topic.`,
+        { contextId: `live-help:${latestAgentTurn.id}:repeat` }
+      );
     }
-    setHelp({type:"slower",label:"REPEAT SLOWER",jp:lastAi?.jp || scenario.opening,romaji:lastAi?.romaji || "",en:lastAi?.en || "The agent can repeat more slowly during voice practice."});
-  };
+
+    try {
+      const response = await fetch("/api/live-help", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenarioId: scenario.id,
+          scenario: {
+            id: scenario.id,
+            name: scenario.name,
+            role: scenario.role,
+            description: scenario.description,
+            shortGoal: scenario.shortGoal,
+            goals: scenario.goals,
+            politenessMode: scenario.politenessMode,
+            registerLabel: scenario.registerLabel
+          },
+          supportLevel: settings.supportLevelLabel || getSupportLevelLabel(settings.supportLevel),
+          helpType,
+          latestAgentMessage: latestAgentTurn.text
+        })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success || !data.support) {
+        throw new Error("live-help-failed");
+      }
+      setConversationSupport({
+        ...data.support,
+        relatedAgentTurnId: latestAgentTurn.id
+      });
+    } catch {
+      setConversationSupport(null);
+      setSupportError("We couldn't prepare help for this message. Please try again.");
+    } finally {
+      setSupportLoading(null);
+    }
+  }, [isVoiceMode, latestAgentTurn, scenario, settings.supportLevel, settings.supportLevelLabel, voice]);
+
+  const showHint = () => requestLiveHelp("hint");
+  const explainLast = () => requestLiveHelp("explanation");
+  const repeatSlower = () => requestLiveHelp("repeat");
   const formattedDuration = `${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
   const supportLabel = settings.supportLevelLabel || getSupportLevelLabel(settings.supportLevel);
   const composer = <div className="composer"><button className="mic-button" type="button" onClick={isVoiceMode && voice.isConnected ? voice.isListening ? voice.muteMicrophone : voice.unmuteMicrophone : undefined}>{isVoiceMode && voice.status === "Muted" ? <Pause/> : <Mic/>}</button><textarea rows="1" placeholder={isDemoMode ? "Demo responses are pre-filled..." : "Voice practice uses your microphone..."} disabled /></div>;
+  const helpDisabled = Boolean(supportLoading) || !latestAgentTurn;
+  const loadingMessage = supportLoading === "hint"
+    ? "Preparing a hint…"
+    : supportLoading === "explanation"
+      ? "Explaining the last message…"
+      : supportLoading === "repeat"
+        ? "Preparing a slower repeat…"
+        : "";
+  const renderLiveHelpControls = () => <div className="live-help-controls">
+    <button onClick={showHint} disabled={helpDisabled}><Lightbulb/><div><b>Give me a hint</b><span>See how you could reply</span></div></button>
+    <button onClick={explainLast} disabled={helpDisabled}><CircleHelp/><div><b>I don’t understand</b><span>Explain the last message</span></div></button>
+    <button onClick={repeatSlower} disabled={helpDisabled}><RotateCcw/><div><b>Repeat slower</b><span>Hear the last message again</span></div></button>
+    {!latestAgentTurn && <p className="support-status">Wait for your conversation partner to speak first.</p>}
+    {loadingMessage && <p className="support-status">{loadingMessage}</p>}
+    {supportError && <p className="support-error">{supportError}</p>}
+  </div>;
+  const renderDisplaySettings = () => <div className="display-settings"><small>DISPLAY</small><div><Languages/><span><b>Romaji</b>Reading support</span><button className={`toggle ${romaji?"on":""}`} onClick={()=>setRomaji(!romaji)}><i/></button></div><div><Languages/><span><b>Translation</b>English meaning</span><button className={`toggle ${translation?"on":""}`} onClick={()=>setTranslation(!translation)}><i/></button></div></div>;
   return <div className={`app-screen conversation-page ${isVoiceMode ? "voice-session-active" : ""}`}>
     <header className="room-header"><div className="room-brand"><span>話</span> Kaiwa Lab</div><div className="room-title"><small>NOW PRACTICING</small><b>{scenario.name}</b><span>{scenario.role}</span></div><div className="room-badges"><span>{supportLabel}</span><span>{scenario.registerLabel || scenario.politenessMode}</span><span>{isVoiceMode ? "Live voice" : "Demo flow"}</span><b>{formattedDuration}</b><button onClick={endSession} disabled={ending}>{ending ? <AudioLines/> : <Square/>} {ending ? "Reviewing…" : "End session"}</button></div></header>
     {(isVoiceMode || isDemoMode) && <div className="mobile-bottom-dock" role="region" aria-label={isVoiceMode ? "Live voice practice controls" : "Demo flow controls"}>
@@ -327,7 +439,7 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
         <div className="voice-stage"><span className="speaking-label">● {roomStatus.toUpperCase()}</span><div className="room-orb"><i/><i/><span><AudioLines/></span></div><p>{lastAi?.jp || (isVoiceMode ? "Voice practice is getting ready..." : scenario.opening)}</p>{romaji && <i>{lastAi?.romaji}</i>}</div>
         <div className="transcript-title"><b>Conversation</b><span>LIVE TRANSCRIPT</span></div>
         <div className="transcript">{transcript.map((m,i)=><TranscriptBubble key={isVoiceMode ? voice.transcriptEvents[i]?.id || i : i} message={m} romaji={romaji} translation={translation}/>)}</div>
-        {help && <div className={`help-card ${help.type}`}><button onClick={()=>setHelp(null)}>×</button><small>{help.label}</small><b>{help.jp}</b>{romaji && <i>{help.romaji}</i>}<span>{help.en}</span></div>}
+        <div className="mobile-help-panel"><small>LIVE HELP</small><h3>Need a hand?</h3>{renderLiveHelpControls()}{renderDisplaySettings()}<LiveSupportPanel support={conversationSupport} onClear={() => setConversationSupport(null)} /></div>
         <div ref={transcriptEndRef} aria-hidden="true" />
         {isVoiceMode && showJumpLatest && <button type="button" className="jump-latest" onClick={scrollToLatest}>Jump to latest</button>}
         {isDemoMode && count < scenarioTranscript.length && <button className="btn btn-red demo-next" onClick={next}>Play next message <Play/> </button>}
@@ -335,11 +447,9 @@ function ConversationRoomContent({ scenario, settings, onEnd, onVoiceAccessExpir
       </section>
       <aside className="help-panel">
         <small>LIVE HELP</small><h3>Need a hand?</h3>
-        <button onClick={showHint}><Lightbulb/><div><b>Give me a hint</b><span>See a useful phrase</span></div></button>
-        <button onClick={explainLast}><CircleHelp/><div><b>I don’t understand</b><span>Explain in English</span></div></button>
-        <button onClick={repeatSlower}><RotateCcw/><div><b>Repeat slower</b><span>Hear a simpler version</span></div></button>
-        <div className="display-settings"><small>DISPLAY</small><div><Languages/><span><b>Romaji</b>Reading support</span><button className={`toggle ${romaji?"on":""}`} onClick={()=>setRomaji(!romaji)}><i/></button></div><div><Languages/><span><b>Translation</b>English meaning</span><button className={`toggle ${translation?"on":""}`} onClick={()=>setTranslation(!translation)}><i/></button></div></div>
-        <div className="phrase-side"><small>USEFUL NOW</small>{scenario.usefulPhrases.slice(0,3).map((p)=><div key={p}><b>{p}</b>{romaji && <span>Display support only</span>}</div>)}</div>
+        {renderLiveHelpControls()}
+        {renderDisplaySettings()}
+        <LiveSupportPanel support={conversationSupport} onClear={() => setConversationSupport(null)} />
       </aside>
     </div>
   </div>;

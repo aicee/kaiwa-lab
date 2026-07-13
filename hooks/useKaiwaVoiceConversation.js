@@ -191,9 +191,9 @@ export function useKaiwaVoiceConversation() {
     conversation.setVolume({ volume });
   }, [conversation]);
 
-  const sendContextualUpdate = useCallback((text) => {
+  const sendContextualUpdate = useCallback((text, options) => {
     if (conversation.status !== "connected") return false;
-    conversation.sendContextualUpdate(text);
+    conversation.sendContextualUpdate(text, options);
     return true;
   }, [conversation]);
 
