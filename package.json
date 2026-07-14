@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@elevenlabs/react": "^1.9.1",
+    "@vercel/analytics": "^2.0.1",
     "lucide-react": "^0.468.0",
     "next": "^14.2.21",
     "openai": "^6.46.0",
